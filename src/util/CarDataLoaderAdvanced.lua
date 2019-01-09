@@ -10,8 +10,8 @@ function CarDataLoader.create(nfolds, batch_size)
     setmetatable(self, CarDataLoader)
 
     -- Specify path to preprocessed data
-    x_file = '/Users/ian/development/final/network-data/reconstructed/reconstructed-inputs-basic.t7'
-    y_file = '/Users/ian/development/final/network-data/reconstructed/reconstructed-labels-basic.t7'
+    x_file = '/Users/ian/development/final/network-data/reconstructed/reconstructed-inputs-advanced.t7'
+    y_file = '/Users/ian/development/final/network-data/reconstructed/reconstructed-labels-advanced.t7'
     assert(path.exists(x_file), 'Input data file not found')
     assert(path.exists(y_file), 'Target data file not found')
 

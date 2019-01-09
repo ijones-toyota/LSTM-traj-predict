@@ -12,7 +12,7 @@ local CarDataLoader = require '../util/CarDataLoader'
 function load_net(valSet)
 
 	-- Specify directory containing stored nets
-	local net_dir = '/Users/ian/development/LSTM-jmorton/src/nets/ten_fold'
+	local net_dir = '/Users/ian/development/final/nets/ten_fold'
 
 	-- Specify RNN checkpoint file
 	checkpoint_file = net_dir .. '/mixture_b_valSet' .. valSet .. '.00.t7'

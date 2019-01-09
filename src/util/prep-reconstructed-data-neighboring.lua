@@ -8,7 +8,6 @@ cmd:text('Options')
 cmd:option('-csvfile', '', 'csv file to read data from')
 cmd:option('-inputsfile', 'inputs.t7', '.t7 file to write input feature tensors to')
 cmd:option('-labelsfile', 'labels.t7', '.t7 file to write label tensors to')
-cmd:option('-follower', false, 'whether to include follower vehicle features as well as leader vehicle')
 cmd:option('-acceleration', false, 'whether to include accelerations in neighboring vehicle features')
 cmd:text()
 
@@ -38,18 +37,10 @@ end
 -- Build up dimensions --
 local length_index = 1   -- keep track of what outer dimension we're in
 local batch_index  = 0   -- keep track of batch dimension
-local num_input_features = 4    
-if opt.follower then
-    num_input_features = 6
-end
-if opt.acceleration then
-    num_input_features = 8
-end
-
 -- Tensor to store inputs, will end up being length x 120 x 4 x 1 dimensions -- 
-local inputs = torch.zeros(1, 120, 4)
+local inputs = torch.zeros(1, 120, 6)
 -- Tensor to store labels, will end up being length x 120 x 4 x 1 dimensions -- 
-local labels = torch.zeros(1, 120, 4)
+local labels = torch.zeros(1, 120, 6)
 
 
 -- Read through csv input file, writing data to tensors --
@@ -60,12 +51,6 @@ for line in io.lines(opt.csvfile) do
     -- keep track of this line's input and label 
     local input = torch.zeros(1, 4)
     local label = torch.zeros(1, 4)
-    if opt.follower then
-        input = torch.zeros(1, 6)
-    end
-    if opt.acceleration then
-        input = torch.zeros(1, 8)
-    end
 
     local i = 1
     -- split line on commas
@@ -95,23 +80,6 @@ for line in io.lines(opt.csvfile) do
         elseif i == 12 then
             label[{1, 4}] = d
         end
-
-        -- store follower distance and rel vel
-        if opt.follower then
-            if i == 6 then
-                label[{1, 5}] = d
-            elseif i == 7 then
-                label[{1, 6}] = d
-            end
-        end
-
-        -- store leader/follower acceleration as well
-        if opt.acceleration then
-            if i >= 5 and i <= 8 then
-                label[{1, i}] = d 
-            end
-        end
-
         i = i + 1
     end
 
@@ -121,8 +89,7 @@ for line in io.lines(opt.csvfile) do
     if batch_index > 120 then
         batch_index = 1
         length_index = length_index + 1
-
-        inputs = torch.cat(inputs, torch.zeros(1, 120, num_input_features), 1)
+        inputs = torch.cat(inputs, torch.zeros(1, 120, 4), 1)
         labels = torch.cat(labels, torch.zeros(1, 120, 4), 1)
     end
     -- store current tensors
