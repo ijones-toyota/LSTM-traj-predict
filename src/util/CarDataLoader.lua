@@ -27,10 +27,13 @@ function CarDataLoader.create(nfolds, batch_size)
     end
     
     -- Separate target velocities and accelerations (acceleration is used in training, rest is used in validation)
-    local vel = Y[{{}, {}, {1}}]
-    local x_lead = Y[{{}, {}, {4}}]
-    local s_lead = Y[{{}, {}, {3}}]
-    Y = Y[{{}, {}, {2}}]
+    local vel = Y[{{}, {}, {1}}]        -- ego vel
+    local x_lead = Y[{{}, {}, {4}}]     -- lead position
+    local s_lead = Y[{{}, {}, {3}}]     -- lead speed
+    local x_follow = Y[{{}, {}, {6}}]   -- follow position
+    local s_follow =  Y[{{}, {}, {5}}]  -- follow speed
+
+    Y = Y[{{}, {}, {2}}]                -- ego acc
     collectgarbage()
 
     -- Reshape data and store
@@ -42,18 +45,25 @@ function CarDataLoader.create(nfolds, batch_size)
     self.vel = torch.reshape(vel, torch.LongStorage{nfolds, vel:size(1)/(nfolds*batch_size), batch_size, vel:size(2), vel:size(3)})
     self.x_lead = torch.reshape(x_lead, torch.LongStorage{nfolds, x_lead:size(1)/(nfolds*batch_size), batch_size, x_lead:size(2)})
     self.s_lead = torch.reshape(s_lead, torch.LongStorage{nfolds, s_lead:size(1)/(nfolds*batch_size), batch_size, s_lead:size(2)})
+    self.x_follow = torch.reshape(x_follow, torch.LongStorage{nfolds, x_follow:size(1)/(nfolds*batch_size), batch_size, x_follow:size(2)})
+    self.s_follow = torch.reshape(s_follow, torch.LongStorage{nfolds, s_follow:size(1)/(nfolds*batch_size), batch_size, s_follow:size(2)})
+
 
     -- Calculate amount to shift and scale data by in order to have all data zero-mean and normalized
     self.shift = torch.Tensor({torch.mean(self.X[{{}, {}, {}, {}, 1}]), 
         torch.mean(self.X[{{}, {}, {}, {}, 2}]),
         torch.mean(self.X[{{}, {}, {}, {}, 3}]),
-        torch.mean(self.X[{{}, {}, {}, {}, 4}])})
+        torch.mean(self.X[{{}, {}, {}, {}, 4}]),
+        torch.mean(self.X[{{}, {}, {}, {}, 5}]),
+        torch.mean(self.X[{{}, {}, {}, {}, 6}])})
 
     self.scale = torch.Tensor({torch.std(self.X[{{}, {}, {}, {}, 1}]), 
         torch.std(self.X[{{}, {}, {}, {}, 2}]),
         torch.std(self.X[{{}, {}, {}, {}, 3}]),
-        torch.std(self.X[{{}, {}, {}, {}, 4}])})
-
+        torch.std(self.X[{{}, {}, {}, {}, 4}]),
+        torch.std(self.X[{{}, {}, {}, {}, 5}]),
+        torch.std(self.X[{{}, {}, {}, {}, 6}])})
+                     
     -- Set counter to track which set is being held as validation set
     self.valSet = 0
     self.val = false

@@ -39,13 +39,16 @@ end
 
 -- Shift and scale inputs to the network so that they are zero-mean and normalized
 local function shift_scale(x, loader)
-	if x:size(2) == 4 then
-		x = x - torch.repeatTensor(loader.shift, x:size(1))
-		return torch.cdiv(x, torch.repeatTensor(loader.scale, x:size(1)))
+	-- if x:size(2) == 4 then
+	x = x - torch.repeatTensor(loader.shift, x:size(1))
+	return torch.cdiv(x, torch.repeatTensor(loader.scale, x:size(1)))
+
+	--[[
 	else
 		x = x - torch.repeatTensor(loader.shift, x:size(1), x:size(2)/4)
 		return torch.cdiv(x, torch.repeatTensor(loader.scale, x:size(1), x:size(2)/4))
 	end
+	--]]
 end
 
 -- Find location of bin boundaries in acceleration distribution using equal frequency binning

@@ -89,7 +89,8 @@ elseif opt.nbins > 1 then
 else
     error('no prediction method selected')
 end
-inputs = 4 -- size of input state
+-- inputs = 4 -- size of input state
+inputs = 6
 protos = {}
 
 
