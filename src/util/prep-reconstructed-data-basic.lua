@@ -39,17 +39,20 @@ end
 local length_index = 1   -- keep track of what outer dimension we're in
 local batch_index  = 0   -- keep track of batch dimension
 local num_input_features = 4    
+local num_label_features = 4
 if opt.follower then
     num_input_features = 6
+    num_label_features = 6
 end
 if opt.acceleration then
     num_input_features = 8
+    num_label_features = 6
 end
 
--- Tensor to store inputs, will end up being length x 120 x 4 x 1 dimensions -- 
-local inputs = torch.zeros(1, 120, 4)
--- Tensor to store labels, will end up being length x 120 x 4 x 1 dimensions -- 
-local labels = torch.zeros(1, 120, 4)
+-- Tensor to store inputs, will end up being length x 120 x num_input_features x 1 dimensions -- 
+local inputs = torch.zeros(1, 120, num_input_features)
+-- Tensor to store labels, will end up being length x 120 x num_label_features x 1 dimensions -- 
+local labels = torch.zeros(1, 120, num_label_features)
 
 
 -- Read through csv input file, writing data to tensors --
@@ -62,9 +65,11 @@ for line in io.lines(opt.csvfile) do
     local label = torch.zeros(1, 4)
     if opt.follower then
         input = torch.zeros(1, 6)
+        label = torch.zeros(1, 6)
     end
     if opt.acceleration then
         input = torch.zeros(1, 8)
+        label = torch.zeros(1, 6)
     end
 
     local i = 1
@@ -90,25 +95,40 @@ for line in io.lines(opt.csvfile) do
             label[{1, 2}] = d
         -- target leader position 
         elseif i == 11 then
-            label[{1, 3}] = d
+            label[{1, 4}] = d
         -- target leader vel 
         elseif i == 12 then
-            label[{1, 4}] = d
+            label[{1, 3}] = d
         end
 
         -- store follower distance and rel vel
         if opt.follower then
+            -- follower headway distance
             if i == 6 then
-                label[{1, 5}] = d
+                input[{1, 5}] = d
+            -- follower rel vel diff
             elseif i == 7 then
+                input[{1, 6}] = d
+            -- target follower position
+            elseif i == 13 then
                 label[{1, 6}] = d
+            -- target follower velocity
+            elseif i == 14 then
+                label[{1, 5}] = d 
             end
         end
 
         -- store leader/follower acceleration as well
         if opt.acceleration then
+            -- leader/follower acceleration included
             if i >= 5 and i <= 8 then
-                label[{1, i}] = d 
+                input[{1, i}] = d 
+            -- target follower position 
+            elseif i == 13 then
+                label[{1, 6}] = d
+            -- target follower velocity
+            elseif i == 14 then
+                label[{1, 5}] = d 
             end
         end
 
@@ -123,7 +143,7 @@ for line in io.lines(opt.csvfile) do
         length_index = length_index + 1
 
         inputs = torch.cat(inputs, torch.zeros(1, 120, num_input_features), 1)
-        labels = torch.cat(labels, torch.zeros(1, 120, 4), 1)
+        labels = torch.cat(labels, torch.zeros(1, 120, num_label_features), 1)
     end
     -- store current tensors
     inputs[{length_index, batch_index}] = input

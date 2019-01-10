@@ -2,7 +2,7 @@ require 'torch'
 require 'nn'
 require 'nngraph'
 require 'optim'
-require 'normalNLL'
+require '../util/normalNLL'
 require 'csvigo'
 convert = require '../util/convert'
 local CarDataLoader = require '../util/CarDataLoader'
@@ -12,7 +12,7 @@ local CarDataLoader = require '../util/CarDataLoader'
 function load_net(valSet)
 
 	-- Specify directory containing stored nets
-	local net_dir = '/Users/ian/development/final/nets/ten_fold'
+	local net_dir = '/Users/ian/development/final/nets/ten_fold_basic'
 
 	-- Specify RNN checkpoint file
 	checkpoint_file = net_dir .. '/mixture_b_valSet' .. valSet .. '.00.t7'
@@ -130,9 +130,9 @@ end
 -- Function to write tensors to csv file in desired directory
 local function toFile(dir, data, fold)
     if opt.mixture_size > 0 then
-        csvigo.save('./' .. dir .. '/mixture_' .. fold .. '.csv', torch.totable(data))
+        csvigo.save(dir .. '/mixture_' .. fold .. '.csv', torch.totable(data))
     else
-        csvigo.save('./' .. dir .. '/softmax_' .. fold .. '.csv', torch.totable(data))
+        csvigo.save(dir .. '/softmax_' .. fold .. '.csv', torch.totable(data))
     end
 end
 
@@ -205,6 +205,6 @@ for fold = 1, 10 do
 	local combine = torch.cat(sim, real, 2)
 
 	-- Write data to csv
-	toFile('ten_fold', combine, fold)
+	toFile('/Users/ian/development/final/simulated_trajectories', combine, fold)
 end
 

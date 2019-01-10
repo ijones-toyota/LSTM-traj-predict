@@ -75,10 +75,10 @@ for line in io.lines(opt.csvfile) do
             label[{1, 2}] = d
         -- target leader position 
         elseif i == 11 then
-            label[{1, 3}] = d
+            label[{1, 4}] = d
         -- target leader vel 
         elseif i == 12 then
-            label[{1, 4}] = d
+            label[{1, 3}] = d
         end
         i = i + 1
     end

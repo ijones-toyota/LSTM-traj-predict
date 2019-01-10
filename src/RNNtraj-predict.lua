@@ -7,7 +7,7 @@ require 'optim'
 require 'torch'
 require 'nngraph'
 require 'util.misc'
-require 'normalNLL'
+require 'util/normalNLL'
 local CarDataLoader = require 'util.CarDataLoader'
 local model_utils = require 'util.model_utils'
 local LSTMnorm = require 'model.LSTMnorm'
@@ -40,8 +40,8 @@ cmd:option('-epochs', 1,'number of full passes through the training data')
 cmd:option('-grad_clip',5,'clip gradients at this value')
 cmd:option('-seed',123,'torch manual random number generator seed')
 -- saving network
-cmd:option('-checkpoint_dir', 'nets', 'output directory where checkpoints get written')
-cmd:option('-savefile','lstm','filename to autosave the checkpont to. Will be inside checkpoint_dir/')
+cmd:option('-checkpoint_dir', '../../nets', 'output directory where checkpoints get written')
+cmd:option('-savefile','lstm','filename to autosave the checkpoint to. Will be inside checkpoint_dir/')
 cmd:option('-savenet', false, 'whether to save network parameters')
 -- GPU/CPU
 cmd:option('-gpuid',-1,'which gpu to use. -1 = use CPU')

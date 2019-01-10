@@ -33,13 +33,12 @@ def separateData(dataset):
     true_vel  = []
     true_acc  = []
 
-    m = 0
     for line in dataset:
         line = line.split(',')
-        true_dist.append(float(line[96]))
-        true_rel.append(float(line[97]))
-        true_vel.append(float(line[98]))
-        true_acc.append(float(line[99]))
+        true_dist.append(float(line[200]))
+        true_rel.append(float(line[201]))
+        true_vel.append(float(line[202]))
+        true_acc.append(float(line[203]))
 
         # Add list to keep track of samples for this trajectory
 
@@ -61,11 +60,12 @@ def separateData(dataset):
             elif (i-3) % 4 == 0:
                 sim_acc.append(float(line[i]))
 
+
     count = 0
     for a in true_vel:
         if a < 0:
             count += 1
-            # print(a)
+            print(a)
     print("total negative true velocities = " + str(count))
 
     return sim_dist, sim_rel, sim_vel, sim_acc, true_dist, true_rel, true_vel, true_acc
@@ -90,8 +90,8 @@ def calculateError(sim_vel, sim_acc, true_vel, true_acc):
     vel_err  = math.sqrt(vel_err / len(sim_vel))
     acc_err  = math.sqrt(acc_err / len(sim_vel))
 
-    print("Velocity Root Mean Squared Error =                    " + str(vel_err))
-    print("Acceleration Root Mean Squared Error =                " + str(acc_err))
+    print("Velocity Root Mean Squared Error =     " + str(vel_err))
+    print("Acceleration Root Mean Squared Error = " + str(acc_err))
 
 
 
