@@ -73,6 +73,92 @@ def separateData(dataset):
 
 
 """
+# Separates the csv data into simulated and true vectors
+# dist, rel, vel, acc for each category
+# Params:
+#   CSV file to read from, in the format outputted by cross_val.lua
+# Returns:
+#   List of lists
+#   [0] simulated headway distance
+#   [1] simulated relative velocity differential
+#   [2] simulated velocity
+#   [3] simulated acceleration
+#   [4] simulated follower headway distance
+#   [5] simulated follower velocity differential
+#   [6] true headway distance
+#   [7] true relative velocity differential
+#   [8] true velocity
+#   [9] true acceleration
+#   [10] true follow headway distance
+#   [11] true follow relative velocity differential
+"""
+def separateFollowerData(dataset):
+
+    print "separating data..."
+
+    sim_dist = []
+    sim_rel  = []
+    sim_vel  = []
+    sim_acc  = []
+    sim_follow_dist = []
+    sim_follow_rel  = []
+
+    true_dist = []
+    true_rel  = []
+    true_vel  = []
+    true_acc  = []
+    true_follow_dist = []
+    true_follow_rel  = []
+
+    for line in dataset:
+        line = line.split(',')
+        true_dist.append(float(line[300]))
+        true_rel.append(float(line[301]))
+        true_vel.append(float(line[302]))
+        true_acc.append(float(line[303]))
+        true_follow_dist.append(float(line[304]))
+        true_follow_rel.append(float(line[305]))
+
+        # Add list to keep track of samples for this trajectory
+
+        # Loop over simulated values for this timestep
+        for i in range(0, len(line) - 6):
+            # Leader headway distance
+            if i % 6 == 0:
+                sim_dist.append(float(line[i]))
+
+            # Leader relative speed differential
+            elif (i-1) % 6 == 0:
+                sim_rel.append(float(line[i]))
+
+            # Velocity
+            elif (i-2) % 6 == 0:
+                sim_vel.append(float(line[i]))
+
+            # Acceleration
+            elif (i-3) % 6 == 0:
+                sim_acc.append(float(line[i]))
+
+            # Follower headway distance
+            elif (i-4) % 6 == 0:
+                sim_follow_dist.append(float(line[i]))
+
+            # Follower relative speed differential
+            elif (i-5) % 6 == 0:
+                sim_follow_rel.append(float(line[i]))
+
+    count = 0
+    for a in true_vel:
+        if a < 0:
+            count += 1
+            print(a)
+    print("total negative true velocities = " + str(count))
+
+    return sim_dist, sim_rel, sim_vel, sim_acc, sim_follow_dist, sim_follow_rel, true_dist, true_rel, true_vel, true_acc, true_follow_dist, true_follow_rel
+
+
+
+"""
 # Calculates the Root Mean Squared Error of the velocity and acceleration predictions
 """
 def calculateError(sim_vel, sim_acc, true_vel, true_acc):
@@ -90,7 +176,7 @@ def calculateError(sim_vel, sim_acc, true_vel, true_acc):
     vel_err  = math.sqrt(vel_err / len(sim_vel))
     acc_err  = math.sqrt(acc_err / len(sim_vel))
 
-    print("Velocity Root Mean Squared Error =     " + str(vel_err))
+    print("Velocity Root Mean Squared Error     = " + str(vel_err))
     print("Acceleration Root Mean Squared Error = " + str(acc_err))
 
 
@@ -150,13 +236,14 @@ def countInversions(acc):
 
 
 """
-# 
+# Loops over all distance and velocity trajectories and counts the number of negative speed and distance headway values
 """
-def countNegatives(sim_dist, sim_vel):
-
+def countNegatives(sim_dist, sim_vel, true_dist):
     num_neg_dist = 0.0
-    for elem in sim_dist:
-        if elem < 0:
+
+    for i, elem in enumerate(sim_dist):
+        # Only take into account negative distance headways when there is a leading vehicle
+        if elem < 0 and true_dist[i/50] != 0:
             num_neg_dist += 1
 
     num_neg_vel = 0.0
@@ -174,22 +261,47 @@ def countNegatives(sim_dist, sim_vel):
 
 
 if __name__ == "__main__":
-    datafile = sys.argv[1]
-    print "Using file \'" + datafile + "\' for input."
+    input_type = sys.argv[1]
+    traj_dir = "/Users/ian/development/final/simulated_trajectories"
+
+    if input_type == "basic":
+        traj_dir += "/basic_trajectories"
+    elif input_type == "followers":
+        traj_dir += "/follower_basic_trajectories"
+
+    file_prefix = "/mixture_"
+    file_suffix = ".csv"
+
+    datafile = traj_dir + file_prefix + "1" + file_suffix
+    print(datafile)
 
     with open(datafile, "r") as f:
         # Separated data
-        separated_data = separateData(f)
-        sim_dist, sim_rel, sim_vel, sim_acc, true_dist, true_rel, true_vel, true_acc = separated_data
+        if input_type == "basic":
+            separated_data = separateData(f)
+            sim_dist, sim_rel, sim_vel, sim_acc, true_dist, true_rel, true_vel, true_acc = separated_data
 
-        calculateError(sim_vel, sim_acc, true_vel, true_acc)
+            calculateError(sim_vel, sim_acc, true_vel, true_acc)
+            num_true_inversions = countInversions(true_acc)
+            num_sim_inversions = countInversions(sim_acc)
+            print("True inversions = " + str(num_true_inversions))
+            print("Sim inversions  = " + str(num_sim_inversions))
 
-        num_true_inversions = countInversions(true_acc)
-        num_sim_inversions = countInversions(sim_acc)
-        print("True inversions = " + str(num_true_inversions))
-        print("Sim inversions  = " + str(num_sim_inversions))
+            countNegatives(sim_dist, sim_vel, true_dist)
 
-        countNegatives(sim_dist, sim_vel)
+        elif input_type == "followers":
+            separated_data = separateFollowerData(f)
+            sim_dist, sim_rel, sim_vel, sim_acc, sim_follow_dist, sim_follow_rel, \
+            true_dist, true_rel, true_vel, true_acc, true_follow_dist, true_follow_rel = separated_data
+
+            calculateError(sim_vel, sim_acc, true_vel, true_acc)
+
+            num_true_inversions = countInversions(true_acc)
+            num_sim_inversions = countInversions(sim_acc)
+            print("True inversions = " + str(num_true_inversions))
+            print("Sim inversions  = " + str(num_sim_inversions))
+
+            countNegatives(sim_dist, sim_vel, true_dist)
 
 
 

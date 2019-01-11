@@ -6,7 +6,7 @@ import csv
 """
 # Filter through the dataset, organizing by vehicle id and timestep (frame)
 # Params:
-#   reconstructed NGSIM dataset
+#   NGSIM dataset
 # Returns:
 #   Dictionary {Vehicle ID : {timestep : [list of vehicle info]}}
 #   Dictionary where vehicle ids are mapped to dictionaries that map timesteps to vehicle information
@@ -25,15 +25,15 @@ def filterByVehicleID(dataset):
     invalidIDCount = 0
     # Iterate through dataset #
     for line in dataset:
-        line = line.split('\t')
+        line = line.split(',')
         id        = int(line[0].strip())        # Current vehicle ID
         frame     = int(line[1].strip())        # Current frame
-        lane_id   = int(line[2].strip())        # Lane
-        local_y   = float(line[3].strip())      # Y position
-        v_vel     = float(line[4].strip())      # Ego velocity
-        v_acc     = float(line[5].strip())      # Ego acceleration
-        follower  = int(line[8].strip())        # ID of vehicle behind ego
-        leader    = int(line[9].strip())        # ID of vehicle ahead of ego
+        local_y   = float(line[5].strip())      # Y position
+        v_vel     = float(line[11].strip())     # Ego velocity
+        v_acc     = float(line[12].strip())     # Ego acceleration
+        lane_id   = int(line[13].strip())       # Lane
+        leader    = int(line[20].strip())       # ID of vehicle ahead of ego
+        follower  = int(line[21].strip())       # ID of vehicle behind ego
         if lane_id == 0 or lane_id > 8: # bad data
             # print('invalid lane_id for vehicle ' + str(id) + ' at frame ' + str(frame) + ' (lane_id = ' + str(lane_id) + ')')
             invalidIDCount += 1
@@ -115,17 +115,17 @@ def compileVehicleInfo(vehicles):
 
             """ Neighboring vehicle information """
             # TOP LEFT distance from ego at t, velocity difference at t,
-            #          position at t+1, velocity at t+1,
+            #          distance from ego at t+1, velocity difference at t+1,
             # LEFT distance from ego at t, velocity difference at t,
-            #      position at t+1, velocity at t+1,
+            #      distance from ego at t+1, velocity difference at t+1,
             # BOT LEFT distance from ego at t, velocity difference at t,
-            #          position at t+1, velocity at t+1,
+            #          distance from ego at t+1, velocity difference at t+1,
             # TOP RIGHT distance from ego at t, velocity difference at t,
-            #           position at t+1, velocity at t+1,
+            #           distance from ego at t+1, velocity difference at t+1,
             # RIGHT distance from ego at t, velocity difference at t,
-            #       position at t+1, velocity at t+1,
+            #       distance from ego at t+1, velocity difference at t+1,
             # BOT RIGHT distance from ego at t, velocity difference at t,
-            #           position at t+1, velocity at t+1
+            #           distance from ego at t+1, velocity difference at t+1
             # neighboring_info = getNeighboringInfo(vehicles, t, id, MAX_DIST)
 
 
@@ -133,11 +133,9 @@ def compileVehicleInfo(vehicles):
             # X VALUES
             info = ego_info[0]
             info.extend(leader_follower_info[0])
-            # info.extend(neighboring_info[0])
             # Y VALUES
             info.extend(ego_info[1])
             info.extend(leader_follower_info[1])
-            # info.extend(neighboring_info[1])
 
             if id in output:
                 output[id].append(info)
@@ -178,10 +176,10 @@ def getEgoInfo(t, currVehicleInfo):
 # Params:
 #   list of vehicle info, timestep, ego vehicle info, maximum distance to be considered neighboring
 # Returns:
-#   list of leader and follower current and next timestep info
-#   List[0] = [leader/ego distance between at t, leader/ego speed differential at t, leader acceleration at t,
-#              follower/ego distance between at t, follower/ego speed differential at t, follower acceleration at t]
-#   List[1] = [leader position at t+1, leader velocity at t+1, follower position at t+1, follower velocity at t+1]
+#   List = [leader/ego distance between at t, leader/ego speed differential at t, acceleration at t,
+#           leader position at t+1, leader velocity at t+1
+#           follower/ego distance between at t, follower/ego distance between at t, acceleration at t,
+#           follower position at t+1, follower velocity at t+1]
 #
 """
 def getLeaderFollowerInfo(vehicles, t, currVehicleInfo, MAX_DIST):
@@ -277,217 +275,6 @@ def getLeaderFollowerInfo(vehicles, t, currVehicleInfo, MAX_DIST):
 
 
 """
-# Outputs a list of information for the surrounding vehicles for the given timestep
-# Params:
-#   list of vehicle info, timestep, ego vehicle id, maximum distance to be considered neighboring
-# Returns:
-#   list of neighboring current and next timestep info
-#   List[0] = [topleft/ego distance between at t, topleft/ego speed differential at t, topleft acceleration at t,
-#              left/ego distance between at t, left/ego speed differential at t, left acceleration at t
-#              bottomleft/ego distance between at t, bottomleft/ego speed differential at t, bottomleft acceleration at t
-#              topright/ego distance between at t, topright/ego speed differential at t, topright acceleration at t
-#              right/ego distance between at t, right/ego speed differential at t, right acceleration at t,
-#              bottomright/ego distance between at t, bottomright/ego speed differential at t, bottomright acceleration at t]
-#   List[1] = [topleft position at t+1, topleft velocity at t+1, 
-#              left position at t+1, left velocity at t+1,
-#              bottomleft position at t+1, bottomleft velocity at t+1, 
-#              topright position at t+1, topright velocity at t+1,
-#              right position at t+1, right velocity at t+1, 
-#              bottomright position at t+1, bottomright velocity at t+1]
-#
-"""
-def getNeighboringInfo(vehicles, t, ego_ID, MAX_DIST):
-    currVehicleInfo = vehicles[ego_ID]
-    leader = currVehicleInfo[t][4]
-    follower = currVehicleInfo[t][5]
-
-    """ X VALUES (current timestep) """
-    ## Iterate through other vehicles, determine 3 closest vehicles in left/right lanes ##
-    left_vehicles = []
-    right_vehicles = []
-    for otherID in vehicles:
-        # skip ego vehicle and preceding/trailing cars
-        if otherID == ego_ID or otherID == leader or otherID == follower:
-            continue
-
-        otherInfo = vehicles[otherID]
-        # Skip if target vehicle doesn't have info for this timestep
-        if t not in otherInfo:
-            continue
-
-        ego_lane = currVehicleInfo[t][2]
-        ego_y = currVehicleInfo[t][3]
-        other_lane = otherInfo[t][2]
-        other_y = otherInfo[t][3]
-
-        # check left lane
-        if other_lane == ego_lane - 1:
-            left_vehicles = checkForProximity(left_vehicles, ego_y, otherID, other_y, MAX_DIST)
-
-        # check right lane
-        elif other_lane == ego_lane + 1:
-            right_vehicles = checkForProximity(right_vehicles, ego_y, otherID, other_y, MAX_DIST)
-
-    # [distance from ego, speed differential with ego, acceleration]
-    vehicle_tl_info = [0, 0, 0]  # top left
-    vehicle_l_info  = [0, 0, 0]  # left
-    vehicle_bl_info = [0, 0, 0]  # bot left
-    vehicle_tr_info = [0, 0, 0]  # top right
-    vehicle_r_info  = [0, 0, 0]  # right
-    vehicle_br_info = [0, 0, 0]  # bot right
-
-    ego_v = currVehicleInfo[t][0]
-    ego_y = currVehicleInfo[t][3]
-    for i, left in enumerate(left_vehicles):
-        if i == 0:
-            other_info = vehicles[left[0]][t]
-            vehicle_tl_info = [ego_y - other_info[3], ego_v - other_info[0], other_info[1]]
-
-        elif i == 1:
-            other_info = vehicles[left[0]][t]
-            vehicle_l_info = [ego_y - other_info[3], ego_v - other_info[0], other_info[1]]
-
-        elif i == 2:
-            other_info = vehicles[left[0]][t]
-            vehicle_bl_info = [ego_y - other_info[3], ego_v - other_info[0], other_info[1]]
-
-    for i, right in enumerate(right_vehicles):
-        if i == 0:
-            other_info = vehicles[right[0]][t]
-            vehicle_tr_info = [ego_y - other_info[3], ego_v - other_info[0], other_info[1]]
-
-        elif i == 1:
-            other_info = vehicles[right[0]][t]
-            vehicle_r_info = [ego_y - other_info[3], ego_v - other_info[0], other_info[1]]
-
-        elif i == 2:
-            other_info = vehicles[right[0]][t]
-            vehicle_br_info = [ego_y - other_info[3], ego_v - other_info[0], other_info[1]]
-
-    # Compile neighboring info into a single list and return it
-    curr_info = vehicle_tl_info
-    curr_info.extend(vehicle_l_info)
-    curr_info.extend(vehicle_bl_info)
-    curr_info.extend(vehicle_tr_info)
-    curr_info.extend(vehicle_r_info)
-    curr_info.extend(vehicle_br_info)
-
-
-
-    """ Y VALUES (next timestep) """
-    next_info = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    if t + 1 in currVehicleInfo:
-        leader = currVehicleInfo[t+1][4]
-        follower = currVehicleInfo[t+1][5]
-
-        # [position, velocity at t+1]
-        vehicle_tl_info = [0, 0]  # top left
-        vehicle_l_info  = [0, 0]  # left
-        vehicle_bl_info = [0, 0]  # bot left
-        vehicle_tr_info = [0, 0]  # top right
-        vehicle_r_info  = [0, 0]  # right
-        vehicle_br_info = [0, 0]  # bot right
-
-        ## Iterate through other vehicles, determine 3 closest vehicles in left/right lanes ##
-        left_vehicles = []
-        right_vehicles = []
-        for otherID in vehicles:
-            # skip ego vehicle and preceding/trailing cars
-            if otherID == ego_ID or otherID == leader or otherID == follower:
-                continue
-
-            otherInfo = vehicles[otherID]
-            # Skip if target vehicle doesn't have info for this timestep
-            if t+1 not in otherInfo:
-                continue
-
-            ego_lane = currVehicleInfo[t+1][2]
-            ego_y = currVehicleInfo[t+1][3]
-            other_lane = otherInfo[t+1][2]
-            other_y = otherInfo[t+1][3]
-
-            # check left lane
-            if other_lane == ego_lane - 1:
-                left_vehicles = checkForProximity(left_vehicles, ego_y, otherID, other_y, MAX_DIST)
-
-            # check right lane
-            elif other_lane == ego_lane + 1:
-                right_vehicles = checkForProximity(right_vehicles, ego_y, otherID, other_y, MAX_DIST)
-
-
-        for i, left in enumerate(left_vehicles):
-            if i == 0:
-                other_info = vehicles[left[0]][t+1]
-                vehicle_tl_info = [other_info[3], other_info[0]]
-
-            elif i == 1:
-                other_info = vehicles[left[0]][t+1]
-                vehicle_l_info = [other_info[3], other_info[0]]
-
-            elif i == 2:
-                other_info = vehicles[left[0]][t+1]
-                vehicle_bl_info = [other_info[3], other_info[0]]
-
-        for i, right in enumerate(right_vehicles):
-            if i == 0:
-                other_info = vehicles[right[0]][t+1]
-                vehicle_tr_info = [other_info[3], other_info[0]]
-
-            elif i == 1:
-                other_info = vehicles[right[0]][t+1]
-                vehicle_r_info = [other_info[3], other_info[0]]
-
-            elif i == 2:
-                other_info = vehicles[right[0]][t+1]
-                vehicle_br_info = [other_info[3], other_info[0]]
-
-        # Compile neighboring info into a single list and return it
-        next_info = vehicle_tl_info
-        next_info.extend(vehicle_l_info)
-        next_info.extend(vehicle_bl_info)
-        next_info.extend(vehicle_tr_info)
-        next_info.extend(vehicle_r_info)
-        next_info.extend(vehicle_br_info)
-
-
-    return [curr_info, next_info]
-
-
-
-"""
-# Add the given [otherID, other_y] to the list if it is close enough to the ego vehicle (must be less than MAX_DIST ft away)
-# Helps keep track of the 3 closest vehicles to the ego vehicle
-# Params:
-#   vehicle_list = left_vehicles or right_vehicles list of maxlen 3, keeps track of 3 closest vehicles to ego
-#   ego_y        = ego vehicle's y position
-#   otherID      = other vehicle's ID
-#   other_y      = other vehicle's y position
-#
-# Returns:
-#   Updated list of maxlen 3, ordered from smallest to largest distance to the ego vehicle
-#
-"""
-def checkForProximity(vehicle_list, ego_y, otherID, other_y, MAX_DIST):
-
-    if len(vehicle_list) == 0 and abs(ego_y - other_y) <= MAX_DIST:
-        vehicle_list.append([otherID, other_y])
-        return vehicle_list
-
-    for i, vehicle in enumerate(vehicle_list):
-        dist = abs(ego_y - vehicle[1])
-        other_dist = abs(ego_y - other_y)
-        if other_dist < dist:
-            vehicle_list.insert(i, [otherID, other_y])
-            break
-
-    if len(vehicle_list) > 3:
-        vehicle_list.pop()
-
-    return vehicle_list
-
-
-
-"""
 # Makes sure that each chunk of consecutive data corresponds to a 12 second (120 timestepsPerBatch) stretch from the same vehicle
 # Params:
 #   Dictionary of {Vehicle id : [list of [List of timestep info]]}
@@ -532,10 +319,10 @@ def outputToFile(filename, vehicle_info):
 
 
 if __name__ == "__main__":
-    outputfile = "reconstructed-intermediate.csv"
+    outputfile = "ngsim-intermediate.csv"
     print "Using file \'" + outputfile + "\' as output file."
 
-    with open("../../../data/reconstructed_ngsim.tsv", "r") as f:
+    with open("../../../data/ngsim.csv", "r") as f:
         vehicle_info = filterByVehicleID(f)
         vehicle_info = compileVehicleInfo(vehicle_info)
         vehicle_info = organizeIntoTimesteps(vehicle_info, 120)

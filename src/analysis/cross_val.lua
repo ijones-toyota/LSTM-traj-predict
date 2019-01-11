@@ -15,7 +15,7 @@ cmd:text('')
 cmd:text()
 cmd:text('Options')
 -- num inputs
-cmd:option('-input_size', 4, 'number of input features')
+cmd:option('-input_size',4, 'number of input features')
 cmd:option('-batch_size',10,'number of sequences to train on in parallel')
 cmd:option('-nfolds',10,'number of folds to use in cross-validation')
 cmd:text()
@@ -52,7 +52,6 @@ function load_net(valSet)
 	init_state = {}
 	for L=1,opt.num_layers do
 	   	local h_init = torch.zeros(50, opt.nn_size)
-	   	if opt.gpuid >=0 then h_init = h_init:cuda() end
 	   	table.insert(init_state, h_init:clone())
 	   	table.insert(init_state, h_init:clone())
 	end
@@ -147,7 +146,7 @@ local function propagateBasic(states, target, x_lead, s_lead, loader)
 end
 
 -- Propagate augmented state [dl(t), rl(t), s(t), a(t), df(t), rf(t)] --
-local function propagateFollowerBasic(states, target, x_lead, s_lead, x_follower, s_follower, loader)
+local function propagateFollowerBasic(states, target, x_lead, s_lead, x_follow, s_follow, loader)
 
 	-- Create tensor to hold state at each time step, starting 2 seconds back
 	-- state, x = [dl(t), rl(t), s(t), a(t), df(t), rf(t)]
@@ -241,7 +240,6 @@ for fold = 1, 10 do
 
     -- Reshape data
     states = torch.reshape(states, loader.batches*opt.batch_size, 120, opt.input_size)
-    print('here')
     protos.rnn:evaluate()
 
     -- True values of target variables to be simulated
@@ -281,14 +279,16 @@ for fold = 1, 10 do
             local rl = torch.cat(states[{i, {22, 120}, 2}], torch.Tensor({0}))   -- leader relative speed differential
             local ldr = torch.cat(dl, rl, 2)                                     -- store both
             local va = torch.cat(torch.cat(target[{i, {22, 120}}], torch.Tensor({0})), torch.cat(acc[{i, {22, 120}}], torch.Tensor({0})), 2)    -- velocity and acceleration
-            real[size] = torch.cat(ldr, va, 2)   -- tensor size 100x4 (keep track of real trajectories for final 10 seconds)
-          
+            
+            if opt.input_size == 4 then
+                real[size] = torch.cat(ldr, va, 2)   -- tensor size 100x4 (keep track of real trajectories for final 10 seconds)
             -- Add follower data to stored true trajectory values
-            if opt.input_size == 6 then
+            elseif opt.input_size == 6 then
+                local ldrva = torch.cat(ldr, va, 2)
                 local df = torch.cat(states[{i, {22, 120}, 5}], torch.Tensor({0}))   -- follower headway distance
                 local rf = torch.cat(states[{i, {22, 120}, 6}], torch.Tensor({0}))   -- follower relative speed differential
                 local fdr = torch.cat(df, rf, 2)                                     -- store both
-                real[size] = torch.cat(real[size], fdr)
+                real[size] = torch.cat(ldrva, fdr, 2)
             end
         end
         if i%100 == 0 then print(i) end -- track progress
