@@ -1,17 +1,29 @@
--- Modified from char-rnn to read in NGSIM highway data
+-- Modified from Karpathy's char-rnn to read in NGSIM highway data
 
 local CarDataLoader = {}
 CarDataLoader.__index = CarDataLoader
 
--- Note: horizon is in seconds
-function CarDataLoader.create(nfolds, batch_size)
+
+--------------------------
+-- Creates the loader -- 
+--------------------------
+function CarDataLoader.create(nfolds, batch_size, input_size)
 
     local self = {}
     setmetatable(self, CarDataLoader)
 
     -- Specify path to preprocessed data
-    x_file = '/Users/ian/development/final/network_data/followers/inputs-followers-basic.t7'
-    y_file = '/Users/ian/development/final/network_data/followers/labels-followers-basic.t7'
+    local x_file, y_file
+    -- Basic inputs
+    if input_size == 4 then
+        x_file = '/Users/ian/development/final/network_data/basic/reconstructed-inputs-basic.t7'
+        y_file = '/Users/ian/development/final/network_data/basic/reconstructed-labels-basic.t7'
+    -- Follower basic inputs 
+    elseif  input_size == 6 then
+        x_file = '/Users/ian/development/final/network_data/followers/inputs-followers-basic.t7'
+        y_file = '/Users/ian/development/final/network_data/followers/labels-followers-basic.t7'
+    end 
+    
     assert(path.exists(x_file), 'Input data file not found')
     assert(path.exists(y_file), 'Target data file not found')
 
@@ -30,8 +42,13 @@ function CarDataLoader.create(nfolds, batch_size)
     local vel = Y[{{}, {}, {1}}]        -- ego vel
     local x_lead = Y[{{}, {}, {4}}]     -- lead position
     local s_lead = Y[{{}, {}, {3}}]     -- lead speed
-    local x_follow = Y[{{}, {}, {6}}]   -- follow position
-    local s_follow =  Y[{{}, {}, {5}}]  -- follow speed
+
+    -- Add follower data
+    local x_follow, s_follow
+    if input_size == 6 then
+        x_follow = Y[{{}, {}, {6}}]   -- follow position
+        s_follow =  Y[{{}, {}, {5}}]  -- follow speed
+    end
 
     Y = Y[{{}, {}, {2}}]                -- ego acc
     collectgarbage()
@@ -45,25 +62,41 @@ function CarDataLoader.create(nfolds, batch_size)
     self.vel = torch.reshape(vel, torch.LongStorage{nfolds, vel:size(1)/(nfolds*batch_size), batch_size, vel:size(2), vel:size(3)})
     self.x_lead = torch.reshape(x_lead, torch.LongStorage{nfolds, x_lead:size(1)/(nfolds*batch_size), batch_size, x_lead:size(2)})
     self.s_lead = torch.reshape(s_lead, torch.LongStorage{nfolds, s_lead:size(1)/(nfolds*batch_size), batch_size, s_lead:size(2)})
-    self.x_follow = torch.reshape(x_follow, torch.LongStorage{nfolds, x_follow:size(1)/(nfolds*batch_size), batch_size, x_follow:size(2)})
-    self.s_follow = torch.reshape(s_follow, torch.LongStorage{nfolds, s_follow:size(1)/(nfolds*batch_size), batch_size, s_follow:size(2)})
 
+    -- Add follower data
+    if input_size == 6 then
+        self.x_follow = torch.reshape(x_follow, torch.LongStorage{nfolds, x_follow:size(1)/(nfolds*batch_size), batch_size, x_follow:size(2)})
+        self.s_follow = torch.reshape(s_follow, torch.LongStorage{nfolds, s_follow:size(1)/(nfolds*batch_size), batch_size, s_follow:size(2)})
+    end
 
     -- Calculate amount to shift and scale data by in order to have all data zero-mean and normalized
-    self.shift = torch.Tensor({torch.mean(self.X[{{}, {}, {}, {}, 1}]), 
-        torch.mean(self.X[{{}, {}, {}, {}, 2}]),
-        torch.mean(self.X[{{}, {}, {}, {}, 3}]),
-        torch.mean(self.X[{{}, {}, {}, {}, 4}]),
-        torch.mean(self.X[{{}, {}, {}, {}, 5}]),
-        torch.mean(self.X[{{}, {}, {}, {}, 6}])})
+    -- Only basic data
+    if input_size == 4 then
+        self.shift = torch.Tensor({torch.mean(self.X[{{}, {}, {}, {}, 1}]), 
+            torch.mean(self.X[{{}, {}, {}, {}, 2}]),
+            torch.mean(self.X[{{}, {}, {}, {}, 3}]),
+            torch.mean(self.X[{{}, {}, {}, {}, 4}])})
 
-    self.scale = torch.Tensor({torch.std(self.X[{{}, {}, {}, {}, 1}]), 
-        torch.std(self.X[{{}, {}, {}, {}, 2}]),
-        torch.std(self.X[{{}, {}, {}, {}, 3}]),
-        torch.std(self.X[{{}, {}, {}, {}, 4}]),
-        torch.std(self.X[{{}, {}, {}, {}, 5}]),
-        torch.std(self.X[{{}, {}, {}, {}, 6}])})
-                     
+        self.scale = torch.Tensor({torch.std(self.X[{{}, {}, {}, {}, 1}]), 
+            torch.std(self.X[{{}, {}, {}, {}, 2}]),
+            torch.std(self.X[{{}, {}, {}, {}, 3}]),
+            torch.std(self.X[{{}, {}, {}, {}, 4}])})
+    -- Add follower data 
+    elseif input_size == 6 then
+        self.shift = torch.Tensor({torch.mean(self.X[{{}, {}, {}, {}, 1}]), 
+            torch.mean(self.X[{{}, {}, {}, {}, 2}]),
+            torch.mean(self.X[{{}, {}, {}, {}, 3}]),
+            torch.mean(self.X[{{}, {}, {}, {}, 4}]),
+            torch.mean(self.X[{{}, {}, {}, {}, 5}]),
+            torch.mean(self.X[{{}, {}, {}, {}, 6}])})
+        self.scale = torch.Tensor({torch.std(self.X[{{}, {}, {}, {}, 1}]), 
+            torch.std(self.X[{{}, {}, {}, {}, 2}]),
+            torch.std(self.X[{{}, {}, {}, {}, 3}]),
+            torch.std(self.X[{{}, {}, {}, {}, 4}]),
+            torch.std(self.X[{{}, {}, {}, {}, 5}]),
+            torch.std(self.X[{{}, {}, {}, {}, 6}])})
+    end 
+                    
     -- Set counter to track which set is being held as validation set
     self.valSet = 0
     self.val = false
@@ -85,7 +118,11 @@ function CarDataLoader.create(nfolds, batch_size)
     return self
 end
 
--- Function toload next batch
+
+
+---------------------------------
+-- Function to load next batch --
+---------------------------------
 function CarDataLoader:next_batch()
 
     local ix = self.batch_ix

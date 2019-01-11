@@ -1,3 +1,5 @@
+-- Modified from Jeremy Morton's implementation to handle various input sizes
+
 require 'torch'
 require 'nn'
 require 'nngraph'
@@ -7,15 +9,36 @@ require 'csvigo'
 convert = require '../util/convert'
 local CarDataLoader = require '../util/CarDataLoader'
 
+cmd = torch.CmdLine()
+cmd:text()
+cmd:text('')
+cmd:text()
+cmd:text('Options')
+-- num inputs
+cmd:option('-input_size', 4, 'number of input features')
+cmd:option('-batch_size',10,'number of sequences to train on in parallel')
+cmd:option('-nfolds',10,'number of folds to use in cross-validation')
+cmd:text()
+-- parse input params
+opt = cmd:parse(arg)
 
--- Load a network from checkpoint
+
+------------------------------------
+-- Load a network from checkpoint --
+------------------------------------
 function load_net(valSet)
 
-	-- Specify directory containing stored nets
-	local net_dir = '/Users/ian/development/final/nets/ten_fold_followers_basic'
-
+    -- Specify directory containing stored nets
+    local net_dir, file_prefix
+    if opt.input_size == 4 then
+        net_dir = '/Users/ian/development/final/nets/ten_fold_basic'
+        file_prefix = '/basic-valSet' 
+    elseif opt.input_size == 6 then
+        net_dir = '/Users/ian/development/final/nets/ten_fold_followers_basic'
+        file_prefix = '/followers-basic-valSet' 
+    end 
 	-- Specify RNN checkpoint file
-	checkpoint_file = net_dir .. '/followers-basic-valSet' .. valSet .. '.00.t7'
+	checkpoint_file = net_dir .. file_prefix .. valSet .. '.00.t7'
 
 	-- Load RNN from checkpoint
 	print('loading an LSTM from checkpoint')
@@ -71,12 +94,11 @@ local function sample(prediction, protos)
 end
 
 
-
 ----------------------------------------------------------------------------------------------------------
 -- PROPAGATION FUNCTIONS --
 -- Functions to generate velocity predictions at 1, ..., 10 sec horizons using recurrent neural network -- 
 ----------------------------------------------------------------------------------------------------------
--- Propagate basic state [d(t), r(t), s(t), a(t)]
+-- Propagate basic state [d(t), r(t), s(t), a(t)] --
 local function propagateBasic(states, target, x_lead, s_lead, loader)
 
 	-- Create tensor to hold state at each time step, starting 2 seconds back
@@ -124,7 +146,7 @@ local function propagateBasic(states, target, x_lead, s_lead, loader)
     return x[{{22, 121}, {}, {2, 5}}]
 end
 
--- Propagate augmented state [dl(t), rl(t), s(t), a(t), df(t), rf(t)]
+-- Propagate augmented state [dl(t), rl(t), s(t), a(t), df(t), rf(t)] --
 local function propagateFollowerBasic(states, target, x_lead, s_lead, x_follower, s_follower, loader)
 
 	-- Create tensor to hold state at each time step, starting 2 seconds back
@@ -176,8 +198,9 @@ local function propagateFollowerBasic(states, target, x_lead, s_lead, x_follower
 end
 
 
-
--- Function to write tensors to csv file in desired directory
+----------------------------------------------------------------
+-- Function to write tensors to csv file in desired directory --
+----------------------------------------------------------------
 local function toFile(dir, data, fold)
     if opt.mixture_size > 0 then
         csvigo.save(dir .. '/mixture_' .. fold .. '.csv', torch.totable(data))
@@ -186,14 +209,13 @@ local function toFile(dir, data, fold)
     end
 end
 
--- Load state, velocity, and acceleration data
-loader = CarDataLoader.create(10, 10, true)
 
--- Loop over each fold in cross-validation
+-----------------------------------------------------------
+-- Load data and loop over each fold in cross-validation --
+-----------------------------------------------------------
+loader = CarDataLoader.create(opt.nfolds, opt.batch_size, opt.input_size, true)
+
 for fold = 1, 10 do
-   
-    -- local input_size = 4
-    local input_size = 6
 
     -- Load inputs/targets
     loader.valSet = fold
@@ -205,19 +227,21 @@ for fold = 1, 10 do
 
     -- Follower inputs
     local x_follow, s_follow
-    if input_size == 6 then
+    if opt.input_size == 6 then
         x_follow = loader.x_follow[fold]
         s_follow = loader.s_follow[fold]
     end
-
     --Define # of trajectories to simulate
     m = 50
 
+    local input_size = opt.input_size   -- shouldn't be necessary if nets are trained with this param
     -- Load network
     load_net(fold)
-    
+    opt.input_size = input_size
+
     -- Reshape data
-    states = torch.reshape(states, loader.batches*opt.batch_size, 120, input_size)
+    states = torch.reshape(states, loader.batches*opt.batch_size, 120, opt.input_size)
+    print('here')
     protos.rnn:evaluate()
 
     -- True values of target variables to be simulated
@@ -225,11 +249,17 @@ for fold = 1, 10 do
     acc = torch.reshape(acc, loader.batches*opt.batch_size, 120)
     x_lead = torch.reshape(x_lead, loader.batches*opt.batch_size, 120)
     s_lead = torch.reshape(s_lead, loader.batches*opt.batch_size, 120)
+
+    -- Add follower data
+    if opt.input_size == 6 then
+        x_follow = torch.reshape(x_follow, loader.batches*opt.batch_size, 120)
+        s_follow = torch.reshape(s_follow, loader.batches*opt.batch_size, 120)
+    end
     collectgarbage()
 
     -- Initialize tensors to hold data
-	local sim = torch.zeros(10*loader.batches, 100, 50, input_size)
-	local real = torch.zeros(10*loader.batches, 100, input_size)
+	local sim = torch.zeros(10*loader.batches, 100, 50, opt.input_size)
+	local real = torch.zeros(10*loader.batches, 100, opt.input_size)
 	local size = 0
 
     print('Propagating trajectories in fold ' .. fold)
@@ -240,9 +270,9 @@ for fold = 1, 10 do
             size = size + 1
 
             -- Propagate simulated trajectories and store output
-            if input_size == 4 then
+            if opt.input_size == 4 then
                 sim[size] = propagateBasic(states[i], target[i], x_lead[i], s_lead[i], loader)
-            elseif input_size == 6 then
+            elseif opt.input_size == 6 then
                 sim[size] = propagateFollowerBasic(states[i], target[i], x_lead[i], s_lead[i], x_follow[i], s_follow[i], loader)
             end
 
@@ -254,7 +284,7 @@ for fold = 1, 10 do
             real[size] = torch.cat(ldr, va, 2)   -- tensor size 100x4 (keep track of real trajectories for final 10 seconds)
           
             -- Add follower data to stored true trajectory values
-            if input_size == 6 then
+            if opt.input_size == 6 then
                 local df = torch.cat(states[{i, {22, 120}, 5}], torch.Tensor({0}))   -- follower headway distance
                 local rf = torch.cat(states[{i, {22, 120}, 6}], torch.Tensor({0}))   -- follower relative speed differential
                 local fdr = torch.cat(df, rf, 2)                                     -- store both
@@ -269,8 +299,8 @@ for fold = 1, 10 do
 	real = real[{{1, size}, {}, {}}]
 
 	-- Reshape tensors so that they can be written to csv
-	sim = torch.reshape(sim, size * 100, m*input_size)   -- reshape to 2 dimensional [size*100 x m*input_size]
-	real = torch.reshape(real, size * 100, input_size)   -- reshape to 2 dimensional [size*100 x input_size]
+	sim = torch.reshape(sim, size * 100, m*opt.input_size)   -- reshape to 2 dimensional [size*100 x m*input_size]
+	real = torch.reshape(real, size * 100, opt.input_size)   -- reshape to 2 dimensional [size*100 x input_size]
 	collectgarbage()
 
 	-- Combine tensors, rescale and shift state values

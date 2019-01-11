@@ -21,6 +21,7 @@ cmd:text('Train a recurrent neural network to generate speed predictions')
 cmd:text()
 cmd:text('Options')
 -- model params
+cmd:option('-input_size', 4, 'number of input features')
 cmd:option('-nn_size', 64, 'size of LSTM internal state')
 cmd:option('-num_layers', 2, 'number of layers in the LSTM')
 cmd:option('-mixture_size', 0, 'number of Gaussian mixtures in output layer')
@@ -43,39 +44,24 @@ cmd:option('-seed',123,'torch manual random number generator seed')
 cmd:option('-checkpoint_dir', '../../nets', 'output directory where checkpoints get written')
 cmd:option('-savefile','lstm','filename to autosave the checkpoint to. Will be inside checkpoint_dir/')
 cmd:option('-savenet', false, 'whether to save network parameters')
--- GPU/CPU
-cmd:option('-gpuid',-1,'which gpu to use. -1 = use CPU')
 cmd:text()
 
 -- parse input params
 opt = cmd:parse(arg)
 torch.manualSeed(opt.seed)
 
--- initialize cunn/cutorch for training
-if opt.gpuid >= 0 then
-    local ok, cunn = pcall(require, 'cunn')
-    local ok2, cutorch = pcall(require, 'cutorch')
-    if not ok then print('package cunn not found!') end
-    if not ok2 then print('package cutorch not found!') end
-    if ok and ok2 then
-        print('using CUDA on GPU ' .. opt.gpuid .. '...')
-        cutorch.setDevice(opt.gpuid + 1) 
-        cutorch.manualSeed(opt.seed)
-    else
-        print('If cutorch and cunn are installed, your CUDA toolkit may be improperly configured.')
-        print('Check your CUDA toolkit installation, rebuild cutorch and cunn, and try again.')
-        print('Falling back on CPU mode')
-        opt.gpuid = -1 -- overwrite user setting
-    end
-end
 
--- Load data
-local loader = CarDataLoader.create(opt.nfolds, opt.batch_size, true)
+---------------
+-- Load data --
+---------------
+local loader = CarDataLoader.create(opt.nfolds, opt.batch_size, opt.input_size, true)
 
 print('creating an LSTM with ' .. opt.num_layers .. ' layers')
 assert(opt.mixture_size == 0 or opt.nbins == 0, 'must select only one method')
 
--- Specify number of outputs depending on distribution type
+--------------------------------------------------------------
+-- Specify number of outputs depending on distribution type --
+--------------------------------------------------------------
 if opt.mixture_size == 1 then 
     outputs = 2
 elseif opt.mixture_size > 1 then
@@ -89,35 +75,33 @@ elseif opt.nbins > 1 then
 else
     error('no prediction method selected')
 end
--- inputs = 4 -- size of input state
-inputs = 6
+
 protos = {}
 
-
--- Set criterion, again depends on output type
+-------------------------------------------------
+-- Set criterion, again depends on output type --
+-------------------------------------------------
 if opt.mixture_size >= 1 and not opt.iter then
-    protos.rnn = LSTMnorm.lstm(inputs, outputs, opt.nn_size, opt.num_layers, opt.dropout) -- LSTM with Gaussian mixture output
+    protos.rnn = LSTMnorm.lstm(opt.input_size, outputs, opt.nn_size, opt.num_layers, opt.dropout) -- LSTM with Gaussian mixture output
     protos.criterion = normalNLL(opt.mixture_size) 
 else
-    protos.rnn = LSTM.lstm(inputs, outputs, opt.nn_size, opt.num_layers, opt.dropout) -- LSTM with piecewise uniform output
+    protos.rnn = LSTM.lstm(opt.input_size, outputs, opt.nn_size, opt.num_layers, opt.dropout) -- LSTM with piecewise uniform output
     protos.criterion = nn.ClassNLLCriterion()
 end
 
--- the initial state of the cell/hidden states
+-------------------------------------------------
+-- the initial state of the cell/hidden states --
+-------------------------------------------------
 init_state = {}
 for L=1,opt.num_layers do
     local h_init = torch.zeros(opt.batch_size, opt.nn_size)
-    if opt.gpuid >=0 then h_init = h_init:cuda() end
     table.insert(init_state, h_init:clone())
     table.insert(init_state, h_init:clone())
 end
 
--- ship the model to the GPU if desired
-if opt.gpuid >= 0 then
-    for k,v in pairs(protos) do v:cuda() end
-end
-
--- put the above things into one flattened parameters tensor and initialize
+------------------------------------------------------------------------------
+-- put the above things into one flattened parameters tensor and initialize --
+------------------------------------------------------------------------------
 params, grad_params = model_utils.combine_all_parameters(protos.rnn)
 params:uniform(-0.08, 0.08) -- small numbers uniform
 
@@ -129,7 +113,9 @@ for name,proto in pairs(protos) do
     clones[name] = model_utils.clone_many_times(proto, 120, not proto.parameters)
 end
 
--- do fwd/bwd and return loss, grad_params
+---------------------------------------------
+-- do fwd/bwd and return loss, grad_params --
+---------------------------------------------
 local init_state_global = clone_list(init_state)
 -- Define function to evealuate the loss over a batch of 
 -- training data
@@ -147,11 +133,6 @@ feval = function(params_new)
 
     -- get next batch of inputs/targets
     local x, y = loader:next_batch()
-
-    if opt.gpuid >= 0 then -- ship the input arrays to GPU
-        x = x:cuda()
-        y = y:cuda()
-    end
 
     prev_acc = torch.zeros(opt.batch_size)
     ------------------- forward pass -------------------
@@ -216,7 +197,10 @@ feval = function(params_new)
     return loss, grad_params
 end
 
--- Function to evaluate loss on validation set
+
+-------------------------------------------------
+-- Function to evaluate loss on validation set --
+-------------------------------------------------
 function valLoss()
     print('Evaluating loss on validation set for fold ' .. loader.valSet .. '...')
 
@@ -254,7 +238,9 @@ print('Fold ' .. loader.valSet .. ' being used as validation set')
 -- Initialize validation loss
 local old_loss = 1e6
 
--- Loop through data for desired number of epochs
+----------------------------------------------------
+-- Loop through data for desired number of epochs --
+----------------------------------------------------
 for i = 1, opt.epochs do
 
     -- Find validation loss; end training once validation loss has leveled off
@@ -294,7 +280,9 @@ for i = 1, opt.epochs do
     collectgarbage()
 end
 
--- Save network parameters
+-----------------------------
+-- Save network parameters --
+-----------------------------
 if opt.savenet then
     local savefile = string.format('%s/%s_epochs%.2f_%.4f.t7', opt.checkpoint_dir, opt.savefile, opt.epochs, last_loss)
     print('saving checkpoint to ' .. savefile)
