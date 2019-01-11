@@ -5,4 +5,4 @@ Sample command: th RNNtraj-predict.lua -mixture_size 2 -nn_size 128 -learning_ra
 
 * The _util_ folder contains scripts that are used for pre- and post- processing of the data
 * The _analysis_ folder contains scripts for computing error and other analysis metrics
-* The _model_ folder contains the models, adapted from Andrej Karpathy's char-rnn and Jeremy Morton's _LSTM-acc-predict_
+* The _model_ folder contains the models, adapted from Andrej Karpathy's _char-rnn_ and Jeremy Morton's _LSTM-acc-predict_
