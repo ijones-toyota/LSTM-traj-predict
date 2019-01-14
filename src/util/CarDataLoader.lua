@@ -16,10 +16,10 @@ function CarDataLoader.create(nfolds, batch_size, input_size)
     local x_file, y_file
     -- Basic inputs
     if input_size == 4 then
-        x_file = '/Users/ian/development/final/network_data/basic/reconstructed-inputs-basic.t7'
-        y_file = '/Users/ian/development/final/network_data/basic/reconstructed-labels-basic.t7'
+        x_file = '/Users/ian/development/final/network_data/ngsim_basic/ngsim-inputs-basic.t7'
+        y_file = '/Users/ian/development/final/network_data/ngsim_basic/ngsim-labels-basic.t7'
     -- Follower basic inputs 
-    elseif  input_size == 6 then
+    elseif input_size == 6 then
         x_file = '/Users/ian/development/final/network_data/followers/inputs-followers-basic.t7'
         y_file = '/Users/ian/development/final/network_data/followers/labels-followers-basic.t7'
     end 

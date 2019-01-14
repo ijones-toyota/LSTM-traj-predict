@@ -126,18 +126,18 @@ def compileVehicleInfo(vehicles):
             #       position at t+1, velocity at t+1,
             # BOT RIGHT distance from ego at t, velocity difference at t,
             #           position at t+1, velocity at t+1
-            # neighboring_info = getNeighboringInfo(vehicles, t, id, MAX_DIST)
+            neighboring_info = getNeighboringInfo(vehicles, t, id, MAX_DIST)
 
 
             """ Add to output """
             # X VALUES
             info = ego_info[0]
             info.extend(leader_follower_info[0])
-            # info.extend(neighboring_info[0])
+            info.extend(neighboring_info[0])
             # Y VALUES
             info.extend(ego_info[1])
             info.extend(leader_follower_info[1])
-            # info.extend(neighboring_info[1])
+            info.extend(neighboring_info[1])
 
             if id in output:
                 output[id].append(info)
@@ -532,7 +532,7 @@ def outputToFile(filename, vehicle_info):
 
 
 if __name__ == "__main__":
-    outputfile = "reconstructed-intermediate.csv"
+    outputfile = "reconstructed-neighboring-intermediate.csv"
     print "Using file \'" + outputfile + "\' as output file."
 
     with open("../../../data/reconstructed_ngsim.tsv", "r") as f:

@@ -292,6 +292,7 @@ for fold = 1, 10 do
             end
         end
         if i%100 == 0 then print(i) end -- track progress
+        -- if i%3000 == 0 break     -- attempt to save just half of the simulated trajectories (ngsim full)?
     end
 
     -- Get rid of empty values
