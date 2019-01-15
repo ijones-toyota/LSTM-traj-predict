@@ -37,10 +37,10 @@ end
 -- Build up dimensions --
 local length_index = 1   -- keep track of what outer dimension we're in
 local batch_index  = 0   -- keep track of batch dimension
--- Tensor to store inputs, will end up being length x 120 x 4 x 1 dimensions -- 
-local inputs = torch.zeros(1, 120, 6)
--- Tensor to store labels, will end up being length x 120 x 4 x 1 dimensions -- 
-local labels = torch.zeros(1, 120, 6)
+-- Tensor to store inputs, will end up being length x 120 x 18 x 1 dimensions -- 
+local inputs = torch.zeros(1, 120, 18)
+-- Tensor to store labels, will end up being length x 120 x 18 x 1 dimensions -- 
+local labels = torch.zeros(1, 120, 18)
 
 
 -- Read through csv input file, writing data to tensors --
@@ -49,36 +49,39 @@ local count = 0
 for line in io.lines(opt.csvfile) do
     count = count + 1
     -- keep track of this line's input and label 
-    local input = torch.zeros(1, 4)
-    local label = torch.zeros(1, 4)
+    local input = torch.zeros(1, 18)
+    local label = torch.zeros(1, 18)
 
     local i = 1
     -- split line on commas
     for d in string.gmatch(line, "([^,]+)") do
-        -- velocity
-        if i == 1 then
-            input[{1, 3}] = d
-        -- acceleration
-        elseif i == 2 then
-            input[{1, 4}] = d
-        -- distance
-        elseif i == 3 then
-            input[{1, 1}] = d
-        -- rel vel diff
-        elseif i == 4 then
-            input[{1, 2}] = d
-        -- target vel 
-        elseif i == 9 then
-            label[{1, 1}] = d
-        -- target acc 
-        elseif i == 10 then
-            label[{1, 2}] = d
-        -- target leader position 
-        elseif i == 11 then
-            label[{1, 4}] = d
-        -- target leader vel 
-        elseif i == 12 then
-            label[{1, 3}] = d
+        -- velocity, acc, leader dist, leader rel
+        if i >= 1 and i <= 4 then
+            input[{1, i}] = d
+        -- follower dist/rel
+        elseif i == 6 or i == 7 then
+            input[{1, i-1}] = d
+        -- topleft dist/rel
+        elseif i == 9 or i == 10 then
+            input[{1, i-2}] = d
+        -- left dist/rel
+        elseif i == 12 or i == 13 then
+            input[{1, i-3}] = d
+        -- botleft dist/rel
+        elseif i == 15 or i == 16 then
+            input[{1, i-4}] = d
+        -- topright dist/rel
+        elseif i == 18 or i == 19 then
+            input[{1, i-5}] = d
+        -- right dist/rel
+        elseif i == 21 or i == 22 then
+            input[{1, i-6}] = d
+        -- botright dist/rel
+        elseif i == 24 or i == 25 then
+            input[{1, i-7}] = d
+        -- vtprime, atprime, leader x/v, follower x/v, neighboring x/v (see wiki)
+        elseif i >= 27 then
+            label[{1, i-26}] = d
         end
         i = i + 1
     end
@@ -89,8 +92,8 @@ for line in io.lines(opt.csvfile) do
     if batch_index > 120 then
         batch_index = 1
         length_index = length_index + 1
-        inputs = torch.cat(inputs, torch.zeros(1, 120, 4), 1)
-        labels = torch.cat(labels, torch.zeros(1, 120, 4), 1)
+        inputs = torch.cat(inputs, torch.zeros(1, 120, 18), 1)
+        labels = torch.cat(labels, torch.zeros(1, 120, 18), 1)
     end
     -- store current tensors
     inputs[{length_index, batch_index}] = input

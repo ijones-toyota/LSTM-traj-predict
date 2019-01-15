@@ -173,11 +173,13 @@ def calculateError(sim_vel, sim_acc, true_vel, true_acc):
             vel_err += math.pow(sim_vel[(m * 50) + n] - true_vel[m], 2)
             acc_err += math.pow(sim_acc[(m * 50) + n] - true_acc[m], 2)
 
-    vel_err  = math.sqrt(vel_err / len(sim_vel))
-    acc_err  = math.sqrt(acc_err / len(sim_vel))
+    rmse_vel  = math.sqrt(vel_err / len(sim_vel))
+    rmse_acc  = math.sqrt(acc_err / len(sim_vel))
 
-    print("Velocity Root Mean Squared Error     = " + str(vel_err))
-    print("Acceleration Root Mean Squared Error = " + str(acc_err))
+    print("Velocity Root Mean Squared Error     = " + str(rmse_vel))
+    print("Acceleration Root Mean Squared Error = " + str(rmse_acc))
+
+    return [vel_err, acc_err]
 
 
 
@@ -218,7 +220,7 @@ def sign(x):
 """
 # Loops over all acceleration trajectories and counts the number of jerk inversions
 """
-def countInversions(acc):
+def countInversions(acc, type):
 
     j = jerk(acc)
     n = len(j)
@@ -231,7 +233,12 @@ def countInversions(acc):
             if sign(j[k]) * sign(j[k-1]) < 0:
                 count += 1
 
-    return count * 99 / n       # average over all trajectories
+    if type == "True":
+        print("True inversions      = " + str(count * 99 / n))
+    elif type == "Simulated":
+        print("Simulated inversions = " + str(count * 99 / n))
+
+    return [count * 99, n]
 
 
 
@@ -257,6 +264,7 @@ def countNegatives(sim_dist, sim_vel, true_dist):
     print("Frequency negative distance = " + str(num_neg_dist / len(sim_dist)))
     print("Frequency negative velocity = " + str(num_neg_vel / len(sim_vel)))
 
+    return [num_neg_dist, num_neg_vel]
 
 
 
@@ -267,42 +275,94 @@ if __name__ == "__main__":
     if input_type == "basic":
         traj_dir += "/basic_trajectories"
     elif input_type == "followers":
-        traj_dir += "/follower_basic_trajectories"
+        traj_dir += "/follower_01_basic_trajectories"
 
     file_prefix = "/mixture_"
     file_suffix = ".csv"
 
-    datafile = traj_dir + file_prefix + "1" + file_suffix
-    print(datafile)
 
-    with open(datafile, "r") as f:
-        # Separated data
-        if input_type == "basic":
-            separated_data = separateData(f)
-            sim_dist, sim_rel, sim_vel, sim_acc, true_dist, true_rel, true_vel, true_acc = separated_data
+    # Total simulated trajectories
+    total_sim_traj = 0
 
-            calculateError(sim_vel, sim_acc, true_vel, true_acc)
-            num_true_inversions = countInversions(true_acc)
-            num_sim_inversions = countInversions(sim_acc)
-            print("True inversions = " + str(num_true_inversions))
-            print("Sim inversions  = " + str(num_sim_inversions))
+    # Error
+    vel_err = 0
+    acc_err = 0
 
-            countNegatives(sim_dist, sim_vel, true_dist)
+    # Inversions
+    num_true_inversions = 0
+    num_sim_inversions = 0
+    total_true_inversion_traj = 0
+    total_sim_inversion_traj = 0
 
-        elif input_type == "followers":
-            separated_data = separateFollowerData(f)
-            sim_dist, sim_rel, sim_vel, sim_acc, sim_follow_dist, sim_follow_rel, \
-            true_dist, true_rel, true_vel, true_acc, true_follow_dist, true_follow_rel = separated_data
 
-            calculateError(sim_vel, sim_acc, true_vel, true_acc)
+    # Negatives
+    num_neg_dist = 0
+    num_neg_vel = 0
 
-            num_true_inversions = countInversions(true_acc)
-            num_sim_inversions = countInversions(sim_acc)
-            print("True inversions = " + str(num_true_inversions))
-            print("Sim inversions  = " + str(num_sim_inversions))
+    ### Loop through 10 validation sets ###
+    for i in range(1, 11):
+        datafile = traj_dir + file_prefix + str(i) + file_suffix
+        print("\nAnalysis for fold " + str(i))
 
-            countNegatives(sim_dist, sim_vel, true_dist)
 
+        with open(datafile, "r") as f:
+            sim_dist, sim_rel, sim_vel, sim_acc, true_dist, true_rel, true_vel, true_acc = ([] for j in range(8))
+
+            # Separated data
+            if input_type == "basic":
+                separated_data = separateData(f)
+                sim_dist, sim_rel, sim_vel, sim_acc, true_dist, true_rel, true_vel, true_acc = separated_data
+
+            elif input_type == "followers":
+                separated_data = separateFollowerData(f)
+                sim_dist, sim_rel, sim_vel, sim_acc, sim_follow_dist, sim_follow_rel, \
+                true_dist, true_rel, true_vel, true_acc, true_follow_dist, true_follow_rel = separated_data
+
+
+            # Keep track of total simulated trajectories
+            total_sim_traj += len(sim_vel)
+
+            # Keep track of RMSE before averaging for velocity and acceleration
+            error_vals = calculateError(sim_vel, sim_acc, true_vel, true_acc)
+            vel_err += error_vals[0]
+            acc_err += error_vals[1]
+
+            # Keep track of true jerk inversions
+            inversion_vals = countInversions(true_acc, "True")
+            num_true_inversions += inversion_vals[0]
+            total_true_inversion_traj += inversion_vals[1]
+
+            # Keep track of simulated jerk inversions
+            inversion_vals = countInversions(sim_acc, "Simulated")
+            num_sim_inversions += inversion_vals[0]
+            total_sim_inversion_traj += inversion_vals[1]
+
+            # Keep track of negative headway distances
+            negative_vals = countNegatives(sim_dist, sim_vel, true_dist)
+            num_neg_dist += negative_vals[0]
+            num_neg_vel += negative_vals[1]
+
+
+    print("\n\n")
+    print("Analysis across all 10 folds:")
+
+    # Display error across all folds
+    rmse_vel = 1.0 * vel_err / total_sim_traj / 10
+    rmse_acc = 1.0 * acc_err / total_sim_traj / 10
+    print("Velocity RMSE     = " + str(rmse_vel))
+    print("Acceleration RMSE = " + str(rmse_acc))
+
+    # Display inversions across all folds
+    avg_true_inversions = 1.0 * num_true_inversions / total_true_inversion_traj
+    avg_sim_inversions = 1.0 * num_sim_inversions / total_sim_inversion_traj
+    print("Avg True Jerk Inversions      = " + str(avg_true_inversions))
+    print("Avg Simulated Jerk Inversions = " + str(avg_sim_inversions))
+
+    # Display negative values across all folds
+    avg_neg_dist = 1.0 * num_neg_dist / total_sim_traj
+    avg_neg_vel = 1.0 * num_neg_vel / total_sim_traj
+    print("Avg Total Negative Headway Distances = " + str(avg_neg_dist))
+    print("Avg Total Negative Velocities        = " + str(avg_neg_vel))
 
 
 
