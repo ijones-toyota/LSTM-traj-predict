@@ -431,7 +431,6 @@ for fold = 1, 10 do
             end
         end
         if i%100 == 0 then print(i) end -- track progress
-        if i == 300 then break end
     end
 
     -- Get rid of empty values
