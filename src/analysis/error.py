@@ -1,6 +1,6 @@
 import sys
 import math
-
+import csv
 
 
 """
@@ -361,15 +361,20 @@ def printAnalysis(n_folds, vel_err, acc_err, hor_vel_err, hor_acc_err, num_true_
         mrse_hor5_vel += hor_vel_err[4][i] / n_folds
         mrse_hor5_acc += hor_acc_err[4][i] / n_folds
 
-        avg_true_inversions += num_true_inversions[i]
-        avg_sim_inversions += num_sim_inversions[i]
-        count_true_inversion_traj += total_true_inversion_traj[i]
-        count_sim_inversion_traj += total_sim_inversion_traj[i]
+        # avg_true_inversions += num_true_inversions[i]
+        # avg_sim_inversions += num_sim_inversions[i]
+        # count_true_inversion_traj += total_true_inversion_traj[i]
+        # count_sim_inversion_traj += total_sim_inversion_traj[i]
+        avg_true_inversions += (1.0 * num_true_inversions[i] / total_true_inversion_traj[i])
+        avg_sim_inversions += (1.0 * num_sim_inversions[i] / total_sim_inversion_traj[i])
 
 
-        avg_neg_dist += num_neg_dist[i]
-        avg_neg_vel += num_neg_vel[i]
-        count_sim_traj += total_sim_traj[i]
+        avg_neg_dist += 1.0 * num_neg_dist[i] / total_sim_traj[i]
+        avg_neg_vel += 1.0 * num_neg_vel[i] / total_sim_traj[i]
+
+        # avg_neg_dist += num_neg_dist[i]
+        # avg_neg_vel += num_neg_vel[i]
+        # count_sim_traj += total_sim_traj[i]
 
     print("\n\n")
     print("Analysis across all 10 folds:")
@@ -386,14 +391,78 @@ def printAnalysis(n_folds, vel_err, acc_err, hor_vel_err, hor_acc_err, num_true_
     print("5 second horizon || Avg Velocity MRSE = %.4f" % mrse_hor5_vel + " | Avg Acceleration MRSE = %.4f" % mrse_hor5_acc)
 
     # Display inversions across all folds
-    avg_true_inversions = 1.0 * avg_true_inversions / count_true_inversion_traj
-    avg_sim_inversions = 1.0 * avg_sim_inversions / count_sim_inversion_traj
+    # avg_true_inversions = 1.0 * avg_true_inversions / count_true_inversion_traj
+    # avg_sim_inversions = 1.0 * avg_sim_inversions / count_sim_inversion_traj
+    avg_true_inversions = 1.0 * avg_true_inversions / n_folds
+    avg_sim_inversions = 1.0 * avg_sim_inversions / n_folds
     print("Avg True Jerk Inversions = %.4f" % avg_true_inversions + " | Avg Simulated Jerk Inversions = %.4f" % avg_sim_inversions)
 
     # Display negative values across all folds
-    avg_neg_dist = 1.0 * avg_neg_dist / count_sim_traj
-    avg_neg_vel = 1.0 * avg_neg_vel / count_sim_traj
+    # avg_neg_dist = 1.0 * avg_neg_dist / count_sim_traj
+    # avg_neg_vel = 1.0 * avg_neg_vel / count_sim_traj
+    avg_neg_dist = 1.0 * avg_neg_dist / n_folds
+    avg_neg_vel = 1.0 * avg_neg_vel / n_folds
+
+
     print("Avg Total Negative Headway Distances = %.4f" % avg_neg_dist + " | Avg Total Negative Velocities = %.4f" % avg_neg_vel)
+
+
+
+"""
+# Writes the analysis data to file
+"""
+def outputAnalysis(input_type, n_folds, vel_err, acc_err, hor_vel_err, hor_acc_err, num_true_inversions, total_true_inversion_traj,
+                  num_sim_inversions, total_sim_inversion_traj, num_neg_dist, num_neg_vel, total_sim_traj):
+
+    print "writing to file..."
+    decimal_places = 4
+
+    # MRSE
+    fn = "../../../analysis_files/" + input_type + "_mrse.csv"
+    vel_acc_err = []
+    for i in range(n_folds):
+        vel_acc = [input_type, i+1, round(vel_err[i], decimal_places), round(acc_err[i], decimal_places)]
+        vel_acc_err.append(vel_acc)
+    with open(fn, "w") as f:
+        writer = csv.writer(f)
+        writer.writerow(['type', 'fold', 'vel_err', 'acc_err'])
+        writer.writerows(vel_acc_err)
+
+    # HORIZON MRSE
+    fn = "../../../analysis_files/" + input_type + "_horizon_mrse.csv"
+    hor_vel_acc_err = []
+    for i in range(n_folds):
+        for j in range(len(hor_vel_err)):
+            hor_vel_acc = [input_type, i+1, j+1, round(hor_vel_err[j][i], decimal_places), round(hor_acc_err[j][i], decimal_places)]
+            hor_vel_acc_err.append(hor_vel_acc)
+    with open(fn, "w") as f:
+        writer = csv.writer(f)
+        writer.writerow(['type', 'fold', 'horizon', 'hor_vel_err', 'hor_acc_err'])
+        writer.writerows(hor_vel_acc_err)
+
+    # INVERSION DATA
+    fn = "../../../analysis_files/" + input_type + "_inversions.csv"
+    inversions = []
+    for i in range(n_folds):
+        inversion_fold = [input_type, i+1, round(1.0 * num_true_inversions[i] / total_true_inversion_traj[i], decimal_places), round(1.0 * num_sim_inversions[i] / total_sim_inversion_traj[i], decimal_places)]
+        inversions.append(inversion_fold)
+
+    with open(fn, "w") as f:
+        writer = csv.writer(f)
+        writer.writerow(['type', 'fold', 'num_true_inversions', 'num_sim_inversions'])
+        writer.writerows(inversions)
+
+    # NEGATIVE STATE DATA
+    fn = "../../../analysis_files/" + input_type + "_negatives.csv"
+    negatives = []
+    for i in range(n_folds):
+        negative_fold = [input_type, i+1, round(1.0 * num_neg_dist[i] / total_sim_traj[i], decimal_places), round(1.0 * num_neg_vel[i] / total_sim_traj[i], decimal_places)]
+        negatives.append(negative_fold)
+
+    with open(fn, "w") as f:
+        writer = csv.writer(f)
+        writer.writerow(['type', 'fold', 'num_neg_dist', 'num_neg_vel'])
+        writer.writerows(negatives)
 
 
 
@@ -494,7 +563,8 @@ if __name__ == "__main__":
                   num_sim_inversions, total_sim_inversion_traj, num_neg_dist, num_neg_vel, total_sim_traj)
 
     """ Output statistics to csv """
-    outputAnalysis()
+    outputAnalysis(input_type, n-1, vel_err, acc_err, hor_vel_err, hor_acc_err, num_true_inversions, total_true_inversion_traj,
+                   num_sim_inversions, total_sim_inversion_traj, num_neg_dist, num_neg_vel, total_sim_traj)
 
 
 
