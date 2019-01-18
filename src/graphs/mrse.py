@@ -75,29 +75,33 @@ def plotDualBarChart(fn, metric, var1Name, var2Name):
     fig, ax = plt.subplots()
 
     index = np.arange(n_groups)
-    bar_width = 0.35
+    bar_width = 0.2
 
     opacity = 0.4
     error_config = {'ecolor': '0.3'}
 
     var1Bar = ax.bar(index, var1_means, bar_width,
-                    alpha=opacity, color='b',
+                    alpha=opacity, color="#4f4f4f",
                     yerr=var1_stderrors, error_kw=error_config,
                     label=var1Name)
 
     var2Bar = ax.bar(index + bar_width, var2_means, bar_width,
-                    alpha=opacity, color='r',
+                    alpha=opacity, color='#b5b5b5',
                     yerr=var2_stderrors, error_kw=error_config,
                     label=var2Name)
 
-    ax.set_xlabel('Network')
-    ax.set_ylabel(metric)
-    ax.set_title('Mean Root Squared Error across 10 folds')
+    ax.set_ylabel(metric, labelpad=30)
     ax.set_xticks(index + bar_width)
     ax.set_xticklabels(('Basic', 'Follower', 'Neighbors'))
+    ax.tick_params(axis='x', pad=20)
+    ax.tick_params(axis='y', pad=5)
+
+    # Put a legend below current axis
     ax.legend()
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.075), ncol=2, frameon=False)
 
     fig.tight_layout()
+    plt.grid()
     plt.show()
 
 
@@ -148,24 +152,27 @@ def plotDualLineChart(fn, metric, varName):
         follower_means[horizon], follower_stderrors[horizon] = getMeanAndStdError(var['followers'][horizon])
         neighbors_means[horizon], neighbors_stderrors[horizon] = getMeanAndStdError(var['neighbors'][horizon])
 
-
     horizons = [1, 2, 3, 4, 5]
 
     # PLOT GRAPH
     fig, ax = plt.subplots()
 
-    basicLine = plt.plot(horizons, basic_means, label='Basic')
-    followerLine = plt.plot(horizons, follower_means, label='Follower')
-    neighborsLine = plt.plot(horizons, neighbors_means, label='Neighbors')
-    plt.errorbar(horizons, basic_means, yerr=basic_stderrors, fmt='o')
-    plt.errorbar(horizons, follower_means, yerr=follower_stderrors, fmt='o')
-    plt.errorbar(horizons, neighbors_means, yerr=neighbors_stderrors, fmt='o')
+    basicLine = plt.plot(horizons, basic_means, label='Basic', linestyle='-', color='black')
+    followerLine = plt.plot(horizons, follower_means, label='Follower', linestyle=":", color='black')
+    neighborsLine = plt.plot(horizons, neighbors_means, label='Neighbors', linestyle="--", color='black')
+    plt.errorbar(horizons, basic_means, yerr=basic_stderrors, fmt='o', color='black')
+    plt.errorbar(horizons, follower_means, yerr=follower_stderrors, fmt='o', color='black')
+    plt.errorbar(horizons, neighbors_means, yerr=neighbors_stderrors, fmt='o', color='black')
 
-    ax.set_xlabel('Prediction Horizon (s)')
-    ax.set_ylabel(metric)
-    ax.set_title('Error in predictions over different prediction horizons')
+    ax.set_xlabel('Prediction Horizon (s)', labelpad=15)
+    ax.set_ylabel(metric, labelpad=15)
     plt.xticks(np.arange(min(horizons), max(horizons) + 1, 1.0))
+    ax.tick_params(axis='x', pad=5)
+    ax.tick_params(axis='y', pad=5)
+
+    # Put a legend below current axis
     ax.legend()
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -.1), ncol=3, frameon=False)
 
     fig.tight_layout()
     plt.show()
@@ -177,9 +184,22 @@ def plotDualLineChart(fn, metric, varName):
 # MAIN
 """
 if __name__ == "__main__":
+    SMALL_SIZE = 14
+    MEDIUM_SIZE = 18
+    BIGGER_SIZE = 22
+
+    plt.rc('font', size=SMALL_SIZE)  # controls default text sizes
+    plt.rc('axes', titlesize=SMALL_SIZE)  # fontsize of the axes title
+    plt.rc('axes', labelsize=MEDIUM_SIZE)  # fontsize of the x and y labels
+    plt.rc('xtick', labelsize=MEDIUM_SIZE)  # fontsize of the tick labels
+    plt.rc('ytick', labelsize=MEDIUM_SIZE)  # fontsize of the tick labels
+    plt.rc('legend', fontsize=SMALL_SIZE)  # legend fontsize
+    plt.rc('axes', titlesize=BIGGER_SIZE)  # fontsize of the figure title
+    plt.rcParams['figure.facecolor'] = 'white'
+    plt.rcParams['savefig.facecolor'] = 'white'
 
     # plotDualBarChart('../../../analysis_files/combined-mrse.csv', "MRSE", "Velocity", "Acceleration")
-    # plotDualBarChart('../../../analysis_files/combined-negatives.csv', "Frequency", "Negative Headway", "Negative Speed")
+    plotDualBarChart('../../../analysis_files/combined-negatives.csv', "Frequency", "Negative Headway", "Negative Speed")
     # plotDualLineChart('../../../analysis_files/combined-horizons.csv', "MRSE", "Velocity")
 
 
