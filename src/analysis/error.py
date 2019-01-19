@@ -35,8 +35,6 @@ def separateData(dataset):
         true_vel.append(float(line[202]))
         true_acc.append(float(line[203]))
 
-        # Add list to keep track of samples for this trajectory
-
         # Loop over simulated values for this timestep
         for i in range(0, len(line) - 4):
             # Headway distance
@@ -86,8 +84,6 @@ def separateFollowerData(dataset):
         true_dist.append(float(line[300]))
         true_vel.append(float(line[302]))
         true_acc.append(float(line[303]))
-
-        # Add list to keep track of samples for this trajectory
 
         # Loop over simulated values for this timestep
         for i in range(0, len(line) - 6):
@@ -361,20 +357,11 @@ def printAnalysis(n_folds, vel_err, acc_err, hor_vel_err, hor_acc_err, num_true_
         mrse_hor5_vel += hor_vel_err[4][i] / n_folds
         mrse_hor5_acc += hor_acc_err[4][i] / n_folds
 
-        # avg_true_inversions += num_true_inversions[i]
-        # avg_sim_inversions += num_sim_inversions[i]
-        # count_true_inversion_traj += total_true_inversion_traj[i]
-        # count_sim_inversion_traj += total_sim_inversion_traj[i]
         avg_true_inversions += (1.0 * num_true_inversions[i] / total_true_inversion_traj[i])
         avg_sim_inversions += (1.0 * num_sim_inversions[i] / total_sim_inversion_traj[i])
 
-
         avg_neg_dist += 1.0 * num_neg_dist[i] / total_sim_traj[i]
         avg_neg_vel += 1.0 * num_neg_vel[i] / total_sim_traj[i]
-
-        # avg_neg_dist += num_neg_dist[i]
-        # avg_neg_vel += num_neg_vel[i]
-        # count_sim_traj += total_sim_traj[i]
 
     print("\n\n")
     print("Analysis across all 10 folds:")
@@ -391,15 +378,11 @@ def printAnalysis(n_folds, vel_err, acc_err, hor_vel_err, hor_acc_err, num_true_
     print("5 second horizon || Avg Velocity MRSE = %.4f" % mrse_hor5_vel + " | Avg Acceleration MRSE = %.4f" % mrse_hor5_acc)
 
     # Display inversions across all folds
-    # avg_true_inversions = 1.0 * avg_true_inversions / count_true_inversion_traj
-    # avg_sim_inversions = 1.0 * avg_sim_inversions / count_sim_inversion_traj
     avg_true_inversions = 1.0 * avg_true_inversions / n_folds
     avg_sim_inversions = 1.0 * avg_sim_inversions / n_folds
     print("Avg True Jerk Inversions = %.4f" % avg_true_inversions + " | Avg Simulated Jerk Inversions = %.4f" % avg_sim_inversions)
 
     # Display negative values across all folds
-    # avg_neg_dist = 1.0 * avg_neg_dist / count_sim_traj
-    # avg_neg_vel = 1.0 * avg_neg_vel / count_sim_traj
     avg_neg_dist = 1.0 * avg_neg_dist / n_folds
     avg_neg_vel = 1.0 * avg_neg_vel / n_folds
 

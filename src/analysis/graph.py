@@ -105,6 +105,7 @@ def plotDualBarChart(fn, metric, var1Name, var2Name):
     plt.show()
 
 
+
 """
 # Plots a dual line chart across 10 folds for basic, follower, and neighbors data (mrse or negative state data)
 # Data is split into 1-5 second prediction horizons for each fold
@@ -179,6 +180,71 @@ def plotDualLineChart(fn, metric, varName):
 
 
 
+"""
+# Plots a line chart for true, basic, follower, and neighbors trajectory data for a given 10 second prediction horizon
+# Assumes csv file has columns: type, timestep, dataval
+# type = 'true' | 'basic' | 'follower' | 'neighbors'
+# timestep = 0-99
+# dataval = vel | acc | headwaydist
+"""
+def plotTrajectories(fn, metric):
+
+    true_data = [0 for i in range(100)]  # true trajectory
+    sim = {}                             # simulated trajectories (basic, follower, neighbors)
+
+    # Read in data
+    with open(fn, 'r') as f:
+        i = 0
+        for line in f:
+            i += 1
+            if i == 1:
+                continue
+
+            data = line.split(",")
+            input_type = data[0]
+            t = (float(data[1]) + 1) / 10.0
+
+            # Add to true traj
+            if input_type == "true":
+                true_data[t] = float(data[2])
+
+            # Add to simulated trajectories
+            if input_type in sim:
+                sim[input_type][t] = float(data[2])
+            else:
+                sim[input_type] = [0 for j in range(100)]
+                sim[input_type][t] = float(data[2])
+
+
+    timesteps = [(i / 10.0) for i in range(1, 101)]
+    basic_data = sim['basic']
+    follower_data = sim['follower']
+    neighbors_data = sim['neighbors']
+
+    # PLOT GRAPH
+    fig, ax = plt.subplots()
+
+    trueLine = plt.plot(timesteps, true_data, label='True Trajectory', linestyle=":", color='black')
+    basicLine = plt.plot(timesteps, basic_data, label='Basic Simulated Trajectory', linestyle="--", color='black')
+    followerLine = plt.plot(timesteps, follower_data, label='Follower Simulated Trajectory', linestyle="-", color='black')
+    neighborsLine = plt.plot(timesteps, neighbors_data, label='Neighbors Simulated Trajectory', linestyle="-.", color='black')
+
+    ax.set_xlabel('Prediction Horizon (s)', labelpad=15)
+    ax.set_ylabel(metric, labelpad=15)
+    plt.xticks(np.arange(0, 6, 1.0))
+    ax.tick_params(axis='x', pad=5)
+    ax.tick_params(axis='y', pad=5)
+
+    # Put a legend below current axis
+    ax.legend()
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -.1), ncol=4, frameon=False)
+
+    fig.tight_layout()
+    plt.show()
+
+
+
+
 
 """ 
 # MAIN
@@ -199,15 +265,8 @@ if __name__ == "__main__":
     plt.rcParams['savefig.facecolor'] = 'white'
 
     # plotDualBarChart('../../../analysis_files/combined-mrse.csv', "MRSE", "Velocity", "Acceleration")
-    plotDualBarChart('../../../analysis_files/combined-negatives.csv', "Frequency", "Negative Headway", "Negative Speed")
+    # plotDualBarChart('../../../analysis_files/combined-negatives.csv', "Frequency", "Negative Headway", "Negative Speed")
     # plotDualLineChart('../../../analysis_files/combined-horizons.csv', "MRSE", "Velocity")
-
-
-
-
-
-
-
-
+    plotTrajectories('../../../analysis_files/.csv', 'a(m/s^2)')
 
 
