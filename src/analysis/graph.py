@@ -1,3 +1,4 @@
+import sys
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -92,7 +93,7 @@ def plotDualBarChart(fn, metric, var1Name, var2Name):
 
     ax.set_ylabel(metric, labelpad=30)
     ax.set_xticks(index + bar_width)
-    ax.set_xticklabels(('Basic', 'Follower', 'Neighbors'))
+    ax.set_xticklabels(('$Basic$', '$Follower$', '$Neighbors$'))
     ax.tick_params(axis='x', pad=20)
     ax.tick_params(axis='y', pad=5)
 
@@ -165,8 +166,13 @@ def plotDualLineChart(fn, metric, varName):
     plt.errorbar(horizons, follower_means, yerr=follower_stderrors, fmt='o', color='black')
     plt.errorbar(horizons, neighbors_means, yerr=neighbors_stderrors, fmt='o', color='black')
 
-    ax.set_xlabel('Prediction Horizon (s)', labelpad=15)
-    ax.set_ylabel(metric, labelpad=15)
+    ax.set_xlabel('$Prediction$ $Horizon$ $(s)$', labelpad=15)
+    ylabel = metric
+    if varName == "Velocity":
+        ylabel += " $(m/s)$"
+    elif varName == "Acceleration":
+        ylabel += " $(m/s^2)$"
+    ax.set_ylabel(ylabel, labelpad=15)
     plt.xticks(np.arange(min(horizons), max(horizons) + 1, 1.0))
     ax.tick_params(axis='x', pad=5)
     ax.tick_params(axis='y', pad=5)
@@ -202,7 +208,8 @@ def plotTrajectories(fn, metric):
 
             data = line.split(",")
             input_type = data[0]
-            t = (float(data[1]) + 1) / 10.0
+            # t = (float(data[1]) + 1) / 10.0
+            t = int(data[1])
 
             # Add to true traj
             if input_type == "true":
@@ -229,9 +236,9 @@ def plotTrajectories(fn, metric):
     followerLine = plt.plot(timesteps, follower_data, label='Follower Simulated Trajectory', linestyle="-", color='black')
     neighborsLine = plt.plot(timesteps, neighbors_data, label='Neighbors Simulated Trajectory', linestyle="-.", color='black')
 
-    ax.set_xlabel('Prediction Horizon (s)', labelpad=15)
+    ax.set_xlabel('$Prediction$ $Horizon$ $(s)$', labelpad=15)
     ax.set_ylabel(metric, labelpad=15)
-    plt.xticks(np.arange(0, 6, 1.0))
+    plt.xticks(np.arange(0, 11, 1.0))
     ax.tick_params(axis='x', pad=5)
     ax.tick_params(axis='y', pad=5)
 
@@ -264,9 +271,13 @@ if __name__ == "__main__":
     plt.rcParams['figure.facecolor'] = 'white'
     plt.rcParams['savefig.facecolor'] = 'white'
 
-    # plotDualBarChart('../../../analysis_files/combined-mrse.csv', "MRSE", "Velocity", "Acceleration")
-    # plotDualBarChart('../../../analysis_files/combined-negatives.csv', "Frequency", "Negative Headway", "Negative Speed")
-    # plotDualLineChart('../../../analysis_files/combined-horizons.csv', "MRSE", "Velocity")
-    plotTrajectories('../../../analysis_files/.csv', 'a(m/s^2)')
+    # plotDualBarChart('../../../analysis_files/combined-mrse.csv', "$MRSE$", "Velocity", "Acceleration")
+    plotDualBarChart('../../../analysis_files/combined-negatives.csv', "$Frequency$", "Negative Headway", "Negative Speed")
+    # plotDualLineChart('../../../analysis_files/combined-horizons.csv', "$MRSE$", "Velocity")
+
+    if len(sys.argv) > 1:
+        traj = sys.argv[1]
+        fn = '../../../trajectory_analysis_files/acc-time-' + traj + '.csv'
+        plotTrajectories(fn, '$a(m/s^2)$')
 
 
