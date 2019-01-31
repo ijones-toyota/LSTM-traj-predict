@@ -23,7 +23,7 @@ def getMeanAndStdError(data):
 
 
 """
-# Plots a dual bar chart across 10 folds for basic, follower, and neighbors data (mrse or negative state data)
+# Plots a dual bar chart across 10 folds for basic, follower, and neighbors data (rmse or negative state data)
 # Data is aggregated across a 10-second prediction horizon for each fold
 """
 def plotDualBarChart(fn, metric, var1Name, var2Name):
@@ -53,20 +53,20 @@ def plotDualBarChart(fn, metric, var1Name, var2Name):
 
 
     # VELOCITY ANALYTICS
-    basic_vel_mrse, basic_vel_stderror = getMeanAndStdError(var1['basic'])
-    follower_vel_mrse, follower_vel_stderror = getMeanAndStdError(var1['followers'])
-    neighbors_vel_mrse, neighbors_vel_stderror = getMeanAndStdError(var1['neighbors'])
+    basic_vel_rmse, basic_vel_stderror = getMeanAndStdError(var1['basic'])
+    follower_vel_rmse, follower_vel_stderror = getMeanAndStdError(var1['followers'])
+    neighbors_vel_rmse, neighbors_vel_stderror = getMeanAndStdError(var1['neighbors'])
 
-    var1_means = [basic_vel_mrse, follower_vel_mrse, neighbors_vel_mrse]
+    var1_means = [basic_vel_rmse, follower_vel_rmse, neighbors_vel_rmse]
     var1_stderrors = [basic_vel_stderror, follower_vel_stderror, neighbors_vel_stderror]
 
 
     # ACCELERATION ANALYTICS
-    basic_acc_mrse, basic_acc_stderror = getMeanAndStdError(var2['basic'])
-    follower_acc_mrse, follower_acc_stderror = getMeanAndStdError(var2['followers'])
-    neighbors_acc_mrse, neighbors_acc_stderror = getMeanAndStdError(var2['neighbors'])
+    basic_acc_rmse, basic_acc_stderror = getMeanAndStdError(var2['basic'])
+    follower_acc_rmse, follower_acc_stderror = getMeanAndStdError(var2['followers'])
+    neighbors_acc_rmse, neighbors_acc_stderror = getMeanAndStdError(var2['neighbors'])
 
-    var2_means = [basic_acc_mrse, follower_acc_mrse, neighbors_acc_mrse]
+    var2_means = [basic_acc_rmse, follower_acc_rmse, neighbors_acc_rmse]
     var2_stderrors = [basic_acc_stderror, follower_acc_stderror, neighbors_acc_stderror]
 
 
@@ -93,7 +93,9 @@ def plotDualBarChart(fn, metric, var1Name, var2Name):
 
     ax.set_ylabel(metric, labelpad=30)
     ax.set_xticks(index + bar_width)
-    ax.set_xticklabels(('$Basic$', '$Follower$', '$Neighbors$'))
+    ax.set_xticklabels(('Basic', 'Follower', 'Neighbors'))
+    # ax.set_xticklabels(('', '', ''))
+    # ax.set_yticklabels((''))
     ax.tick_params(axis='x', pad=20)
     ax.tick_params(axis='y', pad=5)
 
@@ -108,7 +110,7 @@ def plotDualBarChart(fn, metric, var1Name, var2Name):
 
 
 """
-# Plots a dual line chart across 10 folds for basic, follower, and neighbors data (mrse or negative state data)
+# Plots a dual line chart across 10 folds for basic, follower, and neighbors data (rmse or negative state data)
 # Data is split into 1-5 second prediction horizons for each fold
 """
 def plotDualLineChart(fn, metric, varName):
@@ -166,22 +168,27 @@ def plotDualLineChart(fn, metric, varName):
     plt.errorbar(horizons, follower_means, yerr=follower_stderrors, fmt='o', color='black')
     plt.errorbar(horizons, neighbors_means, yerr=neighbors_stderrors, fmt='o', color='black')
 
-    ax.set_xlabel('$Prediction$ $Horizon$ $(s)$', labelpad=15)
+    # ax.set_xlabel('Prediction Horizon $(s)$', labelpad=15)
     ylabel = metric
     if varName == "Velocity":
         ylabel += " $(m/s)$"
     elif varName == "Acceleration":
         ylabel += " $(m/s^2)$"
-    ax.set_ylabel(ylabel, labelpad=15)
+    # ax.set_ylabel(ylabel, labelpad=15)
     plt.xticks(np.arange(min(horizons), max(horizons) + 1, 1.0))
+    plt.ylim(0, 10)
     ax.tick_params(axis='x', pad=5)
     ax.tick_params(axis='y', pad=5)
+
+    ax.set_xticklabels(('', '', ''))
+    ax.set_yticklabels((''))
 
     # Put a legend below current axis
     ax.legend()
     ax.legend(loc='upper center', bbox_to_anchor=(0.5, -.1), ncol=3, frameon=False)
 
     fig.tight_layout()
+    plt.grid()
     plt.show()
 
 
@@ -231,10 +238,10 @@ def plotTrajectories(fn, metric):
     # PLOT GRAPH
     fig, ax = plt.subplots()
 
-    trueLine = plt.plot(timesteps, true_data, label='True Trajectory', linestyle=":", color='black')
-    basicLine = plt.plot(timesteps, basic_data, label='Basic Simulated Trajectory', linestyle="--", color='black')
-    followerLine = plt.plot(timesteps, follower_data, label='Follower Simulated Trajectory', linestyle="-", color='black')
-    neighborsLine = plt.plot(timesteps, neighbors_data, label='Neighbors Simulated Trajectory', linestyle="-.", color='black')
+    trueLine = plt.plot(timesteps, true_data, label='True Trajectory', linestyle="-", color='black')
+    basicLine = plt.plot(timesteps, basic_data, label='Basic Simulated Trajectory', linestyle=":", color='black')
+    followerLine = plt.plot(timesteps, follower_data, label='Follower Simulated Trajectory', linestyle="-.", color='black')
+    neighborsLine = plt.plot(timesteps, neighbors_data, label='Neighbors Simulated Trajectory', linestyle="--", color='black')
 
     ax.set_xlabel('$Prediction$ $Horizon$ $(s)$', labelpad=15)
     ax.set_ylabel(metric, labelpad=15)
@@ -242,11 +249,15 @@ def plotTrajectories(fn, metric):
     ax.tick_params(axis='x', pad=5)
     ax.tick_params(axis='y', pad=5)
 
+    # ax.set_xticklabels(('', '', ''))
+    # ax.set_yticklabels((''))
+
     # Put a legend below current axis
     ax.legend()
     ax.legend(loc='upper center', bbox_to_anchor=(0.5, -.1), ncol=4, frameon=False)
 
     fig.tight_layout()
+    plt.grid()
     plt.show()
 
 
@@ -258,22 +269,22 @@ def plotTrajectories(fn, metric):
 """
 if __name__ == "__main__":
     SMALL_SIZE = 14
-    MEDIUM_SIZE = 18
-    BIGGER_SIZE = 22
+    MEDIUM_SIZE = 16
+    BIGGER_SIZE = 30
 
     plt.rc('font', size=SMALL_SIZE)  # controls default text sizes
-    plt.rc('axes', titlesize=SMALL_SIZE)  # fontsize of the axes title
-    plt.rc('axes', labelsize=MEDIUM_SIZE)  # fontsize of the x and y labels
+    plt.rc('axes', titlesize=BIGGER_SIZE)  # fontsize of the axes title
+    plt.rc('axes', labelsize=BIGGER_SIZE)  # fontsize of the x and y labels
     plt.rc('xtick', labelsize=MEDIUM_SIZE)  # fontsize of the tick labels
     plt.rc('ytick', labelsize=MEDIUM_SIZE)  # fontsize of the tick labels
     plt.rc('legend', fontsize=SMALL_SIZE)  # legend fontsize
-    plt.rc('axes', titlesize=BIGGER_SIZE)  # fontsize of the figure title
     plt.rcParams['figure.facecolor'] = 'white'
     plt.rcParams['savefig.facecolor'] = 'white'
 
-    # plotDualBarChart('../../../analysis_files/combined-mrse.csv', "$MRSE$", "Velocity", "Acceleration")
-    plotDualBarChart('../../../analysis_files/combined-negatives.csv', "$Frequency$", "Negative Headway", "Negative Speed")
-    # plotDualLineChart('../../../analysis_files/combined-horizons.csv', "$MRSE$", "Velocity")
+    # plotDualBarChart('../../../analysis_files/combined-rmse.csv', "RMSE", "Velocity", "Acceleration")
+    # plotDualBarChart('../../../analysis_files/combined-negatives.csv', "$Frequency$", "Negative Headway", "Negative Speed")
+    # plotDualLineChart('../../../analysis_files/combined-horizons.csv', "RMSE", "Velocity")
+    # plotDualLineChart('../../../analysis_files/combined-horizons.csv', "RMSE", "Acceleration")
 
     if len(sys.argv) > 1:
         traj = sys.argv[1]

@@ -154,6 +154,57 @@ def separateNeighborsData(dataset):
     return sim_dist, sim_vel, sim_acc, true_dist, true_vel, true_acc
 
 
+def calculateRMSE(sim_vel, sim_acc, true_vel, true_acc):
+
+    # Keep track of overall error
+    vel_err, acc_err = (0,)*2
+    # Keep track of error at 1 to 10 second horizons
+    hor_vel_err = [0 for i in range(5)]
+    hor_acc_err = [0 for i in range(5)]
+    # Keep track of total samples that each horizon takes into account
+    total_hor_samples = [0 for i in range(5)]
+    total_traj = 0
+
+    # Iterate through all simulated trajectories
+    for m in range(len(true_vel)):
+
+        # Determine time horizon for this trajectory
+        horizon = m % 100
+
+        # Iterate through all samples in each simulated trajectory
+        for n in range(50):
+            # Error for this sample
+            sample_vel_err = math.pow(sim_vel[(m * 50) + n] - true_vel[m], 2)
+            sample_acc_err = math.pow(sim_acc[(m * 50) + n] - true_acc[m], 2)
+
+            # Add to total err, only worry about predictions between 0-5 seconds
+            if horizon <= 49:
+                vel_err += sample_vel_err
+                acc_err += sample_acc_err
+                total_traj += 1
+
+            # keep track of error at horizon marks
+            if horizon % 10 == 9 and horizon <= 49:
+                h = horizon / 10
+                # Add to horizon error calculation
+                hor_vel_err[h] += sample_vel_err
+                hor_acc_err[h] += sample_acc_err
+                total_hor_samples[h] += 1
+
+    rmse_vel  = math.sqrt(1.0 * vel_err / total_traj)
+    rmse_acc  = math.sqrt(1.0 * acc_err / total_traj)
+    print("Velocity RMSE = %.4f" % rmse_vel + ", Acceleration RMSE = %.4f" % rmse_acc)
+
+    print("RMSE subdivided by 1-5 sec time horizon")
+    for i in range(len(hor_vel_err)):
+        hor_vel_err[i] = math.sqrt((1.0 * hor_vel_err[i] / total_hor_samples[i]))
+        hor_acc_err[i] = math.sqrt((1.0 * hor_acc_err[i] / total_hor_samples[i]))
+        print(str(i+1) + " second horizon || Velocity RMSE = %.4f" % hor_vel_err[i] + " | Acceleration RMSE = %.4f" % hor_acc_err[i])
+
+    return [rmse_vel, rmse_acc, hor_vel_err, hor_acc_err]
+
+
+
 
 """
 # Calculates the Mean Root Squared Error of the velocity and acceleration predictions
@@ -215,8 +266,6 @@ def calculateError(sim_vel, sim_acc, true_vel, true_acc):
                     hor_vel_err[4] += sample_vel_err
                     hor_acc_err[4] += sample_acc_err
                     total_hor_samples[4] += 1
-
-
 
     mrse_vel  = math.sqrt(1.0 * vel_err / len(sim_vel))
     mrse_acc  = math.sqrt(1.0 * acc_err / len(sim_vel))
@@ -333,9 +382,9 @@ def printAnalysis(n_folds, vel_err, acc_err, hor_vel_err, hor_acc_err, num_true_
                   num_sim_inversions, total_sim_inversion_traj, num_neg_dist, num_neg_vel, total_sim_traj):
 
     # Error
-    mrse_vel, mrse_acc = (0,)*2
+    rmse_vel, rmse_acc = (0,)*2
     # Error for each time horizon
-    mrse_hor1_vel, mrse_hor1_acc, mrse_hor2_vel, mrse_hor2_acc, mrse_hor3_vel, mrse_hor3_acc, mrse_hor4_vel, mrse_hor4_acc, mrse_hor5_vel, mrse_hor5_acc = (0,)*10
+    rmse_hor1_vel, rmse_hor1_acc, rmse_hor2_vel, rmse_hor2_acc, rmse_hor3_vel, rmse_hor3_acc, rmse_hor4_vel, rmse_hor4_acc, rmse_hor5_vel, rmse_hor5_acc = (0,)*10
     # Negative headway, velocity
     avg_neg_dist, avg_neg_vel, count_sim_traj = (0,)*3
     # Inversions
@@ -344,18 +393,18 @@ def printAnalysis(n_folds, vel_err, acc_err, hor_vel_err, hor_acc_err, num_true_
 
     # Iterate over all folds, summing analytics for averaging
     for i in range(n_folds):
-        mrse_vel += vel_err[i] / n_folds
-        mrse_acc += acc_err[i] / n_folds
-        mrse_hor1_vel += hor_vel_err[0][i] / n_folds
-        mrse_hor1_acc += hor_acc_err[0][i] / n_folds
-        mrse_hor2_vel += hor_vel_err[1][i] / n_folds
-        mrse_hor2_acc += hor_acc_err[1][i] / n_folds
-        mrse_hor3_vel += hor_vel_err[2][i] / n_folds
-        mrse_hor3_acc += hor_acc_err[2][i] / n_folds
-        mrse_hor4_vel += hor_vel_err[3][i] / n_folds
-        mrse_hor4_acc += hor_acc_err[3][i] / n_folds
-        mrse_hor5_vel += hor_vel_err[4][i] / n_folds
-        mrse_hor5_acc += hor_acc_err[4][i] / n_folds
+        rmse_vel += vel_err[i] / n_folds
+        rmse_acc += acc_err[i] / n_folds
+        rmse_hor1_vel += hor_vel_err[0][i] / n_folds
+        rmse_hor1_acc += hor_acc_err[0][i] / n_folds
+        rmse_hor2_vel += hor_vel_err[1][i] / n_folds
+        rmse_hor2_acc += hor_acc_err[1][i] / n_folds
+        rmse_hor3_vel += hor_vel_err[2][i] / n_folds
+        rmse_hor3_acc += hor_acc_err[2][i] / n_folds
+        rmse_hor4_vel += hor_vel_err[3][i] / n_folds
+        rmse_hor4_acc += hor_acc_err[3][i] / n_folds
+        rmse_hor5_vel += hor_vel_err[4][i] / n_folds
+        rmse_hor5_acc += hor_acc_err[4][i] / n_folds
 
         avg_true_inversions += (1.0 * num_true_inversions[i] / total_true_inversion_traj[i])
         avg_sim_inversions += (1.0 * num_sim_inversions[i] / total_sim_inversion_traj[i])
@@ -367,15 +416,15 @@ def printAnalysis(n_folds, vel_err, acc_err, hor_vel_err, hor_acc_err, num_true_
     print("Analysis across all 10 folds:")
 
     # Display error across all folds
-    print("Avg Velocity MRSE = %.4f" % mrse_vel + " | Avg Acceleration MRSE = %.4f" % mrse_acc)
+    print("Avg Velocity RMSE = %.4f" % rmse_vel + " | Avg Acceleration RMSE = %.4f" % rmse_acc)
 
     # Display time horizon error across all folds
     print("Avg MRSE subdivided by 1-5 sec time horizon:")
-    print("1 second horizon || Avg Velocity MRSE = %.4f" % mrse_hor1_vel + " | Avg Acceleration MRSE = %.4f" % mrse_hor1_acc)
-    print("2 second horizon || Avg Velocity MRSE = %.4f" % mrse_hor2_vel + " | Avg Acceleration MRSE = %.4f" % mrse_hor2_acc)
-    print("3 second horizon || Avg Velocity MRSE = %.4f" % mrse_hor3_vel + " | Avg Acceleration MRSE = %.4f" % mrse_hor3_acc)
-    print("4 second horizon || Avg Velocity MRSE = %.4f" % mrse_hor4_vel + " | Avg Acceleration MRSE = %.4f" % mrse_hor4_acc)
-    print("5 second horizon || Avg Velocity MRSE = %.4f" % mrse_hor5_vel + " | Avg Acceleration MRSE = %.4f" % mrse_hor5_acc)
+    print("1 second horizon || Avg Velocity RMSE = %.4f" % rmse_hor1_vel + " | Avg Acceleration RMSE = %.4f" % rmse_hor1_acc)
+    print("2 second horizon || Avg Velocity RMSE = %.4f" % rmse_hor2_vel + " | Avg Acceleration RMSE = %.4f" % rmse_hor2_acc)
+    print("3 second horizon || Avg Velocity RMSE = %.4f" % rmse_hor3_vel + " | Avg Acceleration RMSE = %.4f" % rmse_hor3_acc)
+    print("4 second horizon || Avg Velocity RMSE = %.4f" % rmse_hor4_vel + " | Avg Acceleration RMSE = %.4f" % rmse_hor4_acc)
+    print("5 second horizon || Avg Velocity RMSE = %.4f" % rmse_hor5_vel + " | Avg Acceleration RMSE = %.4f" % rmse_hor5_acc)
 
     # Display inversions across all folds
     avg_true_inversions = 1.0 * avg_true_inversions / n_folds
@@ -401,7 +450,7 @@ def outputAnalysis(input_type, n_folds, vel_err, acc_err, hor_vel_err, hor_acc_e
     decimal_places = 4
 
     # MRSE
-    fn = "../../../analysis_files/" + input_type + "_mrse.csv"
+    fn = "../../../analysis_files/" + input_type + "_rmse.csv"
     vel_acc_err = []
     for i in range(n_folds):
         vel_acc = [input_type, i+1, round(vel_err[i], decimal_places), round(acc_err[i], decimal_places)]
@@ -412,7 +461,7 @@ def outputAnalysis(input_type, n_folds, vel_err, acc_err, hor_vel_err, hor_acc_e
         writer.writerows(vel_acc_err)
 
     # HORIZON MRSE
-    fn = "../../../analysis_files/" + input_type + "_horizon_mrse.csv"
+    fn = "../../../analysis_files/" + input_type + "_horizon_rmse.csv"
     hor_vel_acc_err = []
     for i in range(n_folds):
         for j in range(len(hor_vel_err)):
@@ -520,7 +569,7 @@ if __name__ == "__main__":
 
             """ ERROR """
             # Keep track of MRSE before averaging for velocity and acceleration
-            error_vals = calculateError(sim_vel, sim_acc, true_vel, true_acc)
+            error_vals = calculateRMSE(sim_vel, sim_acc, true_vel, true_acc)
             vel_err.append(error_vals[0])
             acc_err.append(error_vals[1])
             # Keep track of MRSE before averaging for each 1-5 sec time horizon

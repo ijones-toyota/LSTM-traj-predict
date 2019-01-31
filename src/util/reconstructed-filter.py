@@ -55,6 +55,47 @@ def filterByVehicleID(dataset):
 
 
 
+def analyzeAcceleration(vehicle_info):
+
+    numZeroAcc= 0
+    numDataPoints = 0
+    numRepeatedZeros = 0
+
+    currZeroChain = 0
+    zeroChains = {}
+
+    for id in vehicle_info.keys():
+        timesteps = vehicle_info[id]
+        for t in timesteps.keys():
+            numDataPoints += 1
+            info = timesteps[t]
+
+            # Acceleration value is 0, keep track
+            if abs(info[1]) < 0.005:
+                if currZeroChain >= 1:
+                    currZeroChain += 1
+                else:
+                    currZeroChain = 1
+                numZeroAcc += 1
+            # Reset count on the number of consecutive timesteps with acceleration 0
+            else:
+                if currZeroChain >= 1:
+                    numRepeatedZeros += 1
+                    if currZeroChain in zeroChains:
+                        zeroChains[currZeroChain] += 1
+                    else:
+                        zeroChains[currZeroChain] = 1
+                currZeroChain = 0
+
+    print("Total timesteps with acceleration = 0: " + str(numZeroAcc))
+    print("Total timesteps: " + str(numDataPoints))
+    print("Total timesteps with repeated 0's = " + str(numRepeatedZeros))
+
+    for num in zeroChains:
+        print(str(num) + " --> " + str(zeroChains[num]))
+
+
+
 """
 # Iterate through all timesteps for each vehicle, compiling the neighboring vehicle information
 # Neighboring vehicles are considered for the ego's lane and the lane directly to the left and right of the ego
@@ -518,6 +559,87 @@ def organizeIntoTimesteps(vehicle_info, timestepsPerBatch):
     return output
 
 
+def analyzeZeroAccTrajectories(vehicle_info):
+
+    timestepCounter = 0
+
+    totalTraj = 0
+    foundZeroTraj = False
+    numZeroAccTraj = 0
+    currZeroChain = 0
+    zeroChains = {}
+
+    TOTAL_STEPS = 50
+    recorded = False
+    numOneSec = 0
+
+    # Iterate through all trajectories
+    for t, info in enumerate(vehicle_info):
+
+        # Next trajectory
+        if timestepCounter == 120:
+            timestepCounter = 0
+            totalTraj += 1
+            foundZeroTraj = False
+
+            # Keep track of consecutive 0 acc states
+            if currZeroChain in zeroChains:
+                zeroChains[currZeroChain] += 1
+            elif currZeroChain != 0:
+                zeroChains[currZeroChain] = 1
+
+            if currZeroChain >= TOTAL_STEPS:
+                if not recorded:
+                    numOneSec += 1
+
+            recorded = False
+            currZeroChain = 0
+
+
+        # Within 10-second trajectory
+        if timestepCounter >= 20:
+
+            # 0 acc state
+            if abs(info[1]) < 0.005:
+                # Keep track of number of trajectories that contain a 0 value acc
+                if foundZeroTraj == False:
+                    numZeroAccTraj += 1
+                    foundZeroTraj = True
+
+                # Keep track of length of consecutive 0 acc states
+                if currZeroChain >= 1:
+                    currZeroChain += 1
+                else:
+                    currZeroChain = 1
+
+            # non-zero acc state
+            else:
+                # Keep track of consecutive 0 acc states
+                if currZeroChain in zeroChains:
+                    zeroChains[currZeroChain] += 1
+                elif currZeroChain != 0:
+                    zeroChains[currZeroChain] = 1
+
+                if currZeroChain >= TOTAL_STEPS:
+                    if not recorded:
+                        numOneSec += 1
+                        recorded = True
+
+                currZeroChain = 0
+
+        timestepCounter += 1
+
+    if timestepCounter == 120:
+        totalTraj += 1
+
+    print("Total trajectories that contain a state with 0 acc value: " + str(numZeroAccTraj))
+    print("Total trajectories: " + str(totalTraj))
+    print("Total trajectories that contain 1 second or more of 0 acc states: " + str(numOneSec))
+
+    for num in zeroChains:
+        print(str(num) + " --> " + str(zeroChains[num]))
+
+
 
 """
 # Writes the given list of vehicle info to a csv file
@@ -537,9 +659,12 @@ if __name__ == "__main__":
 
     with open("../../../data/reconstructed_ngsim.tsv", "r") as f:
         vehicle_info = filterByVehicleID(f)
+        # analyzeAcceleration(vehicle_info)
+
         vehicle_info = compileVehicleInfo(vehicle_info)
         vehicle_info = organizeIntoTimesteps(vehicle_info, 120)
-        outputToFile(outputfile, vehicle_info)
+        analyzeZeroAccTrajectories(vehicle_info)
+        # outputToFile(outputfile, vehicle_info)
 
 
 
